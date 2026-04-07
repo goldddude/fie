@@ -132,3 +132,98 @@ def get_section_stats():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@attendance_bp.route('/by-session', methods=['GET'])
+def get_by_session():
+    """Get attendance filtered by faculty / subject / date / section"""
+    try:
+        from src.models import Attendance, Student
+        faculty = request.args.get('faculty')
+        subject = request.args.get('subject')
+        date    = request.args.get('date')
+        section = request.args.get('section')
+
+        from src.models import db
+        query = Attendance.query
+
+        if faculty:
+            query = query.filter(Attendance.recorded_by == faculty)
+        if subject:
+            query = query.filter(Attendance.subject == subject)
+        if date:
+            query = query.filter(Attendance.date == date)  # stored as string
+        if section:
+            query = query.join(Student, Attendance.student_id == Student.id).filter(Student.section == section)
+
+        records = query.order_by(Attendance.timestamp.desc()).all()
+
+        result = []
+        for r in records:
+            d = r.to_dict()
+            d['section'] = r.student.section if r.student else None
+            result.append(d)
+
+        return jsonify({'count': len(result), 'attendance': result}), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@attendance_bp.route('/close-session', methods=['POST'])
+def close_session():
+    """Close an attendance session (mark all records as closed)"""
+    try:
+        from src.models import Attendance, db
+        data = request.get_json()
+
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        faculty_name = data.get('faculty_name')
+        subject      = data.get('subject')
+        date         = data.get('date')  # string "YYYY-MM-DD"
+
+        if not all([faculty_name, subject, date]):
+            return jsonify({'error': 'faculty_name, subject, and date are required'}), 400
+
+        # date is stored as a string in the DB — compare as string directly
+        records = Attendance.query.filter(
+            Attendance.recorded_by == faculty_name,
+            Attendance.subject     == subject,
+            Attendance.date        == date,
+        ).all()
+
+        if not records:
+            return jsonify({'error': 'No session records found for this faculty/subject/date'}), 404
+
+        closed_count = 0
+        for record in records:
+            try:
+                record.session_closed = True
+                closed_count += 1
+            except Exception:
+                pass  # column may not exist on old DBs
+
+        db.session.commit()
+
+        return jsonify({'message': 'Session closed successfully', 'closed_count': closed_count}), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@attendance_bp.route('/<int:attendance_id>', methods=['DELETE'])
+def delete_attendance(attendance_id):
+    """Delete an individual attendance record"""
+    try:
+        from src.models import Attendance, db
+        record = Attendance.query.get(attendance_id)
+        if not record:
+            return jsonify({'error': 'Attendance record not found'}), 404
+        db.session.delete(record)
+        db.session.commit()
+        return jsonify({'message': 'Attendance record deleted successfully'}), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

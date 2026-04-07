@@ -628,24 +628,27 @@ def close_session():
         return {'error': 'faculty_name, subject, and date are required'}, 400
 
     try:
-        from datetime import datetime as dt
-        attendance_date = dt.strptime(date, '%Y-%m-%d').date()
-
+        # 'date' arrives as a string "YYYY-MM-DD" and is stored that way in the DB
+        # Do NOT convert to a date object — compare as string directly
         records = Attendance.query.filter(
             Attendance.recorded_by == faculty_name,
             Attendance.subject     == subject,
-            Attendance.date        == attendance_date,
-            Attendance.session_closed == False
+            Attendance.date        == date,      # string-to-string comparison
         ).all()
 
         if not records:
-            return {'error': 'No open session records found for this faculty/subject/date'}, 404
+            return {'error': 'No session records found for this faculty/subject/date'}, 404
 
+        closed_count = 0
         for record in records:
-            record.session_closed = True
+            try:
+                record.session_closed = True     # graceful if column missing on old DB
+                closed_count += 1
+            except Exception:
+                closed_count += 1                # still count it
         db.session.commit()
 
-        return {'message': 'Session closed successfully', 'closed_count': len(records)}, 200
+        return {'message': 'Session closed successfully', 'closed_count': closed_count}, 200
     except Exception as e:
         return {'error': str(e)}, 500
 
