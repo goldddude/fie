@@ -122,31 +122,23 @@ def get_students():
         return jsonify({'error': str(e)}), 500
 
 
-@students_bp.route('/<int:student_id>', methods=['GET'])
-def get_student(student_id):
-    """Get a specific student by ID"""
+@students_bp.route('/<student_id>', methods=['GET', 'DELETE'])
+def get_or_delete_student(student_id):
+    """Get or delete a specific student by ID"""
     try:
         student = StudentService.get_student_by_id(student_id)
-        
+
         if not student:
             return jsonify({'error': 'Student not found'}), 404
-        
+
+        if request.method == 'DELETE':
+            success, message = StudentService.delete_student(student_id)
+            if success:
+                return jsonify({'message': message}), 200
+            else:
+                return jsonify({'error': message}), 400
+
         return jsonify({'student': student.to_dict()}), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
-
-@students_bp.route('/<int:student_id>', methods=['DELETE'])
-def delete_student(student_id):
-    """Delete a student"""
-    try:
-        success, message = StudentService.delete_student(student_id)
-        
-        if success:
-            return jsonify({'message': message}), 200
-        else:
-            return jsonify({'error': message}), 404
-            
     except Exception as e:
         return jsonify({'error': str(e)}), 500
