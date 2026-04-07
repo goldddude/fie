@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Statistics - TapSyncPro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles-pro.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        .dashboard-header {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: start;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .faculty-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.25rem 1.5rem;
+            min-width: 260px;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .faculty-panel-top {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .faculty-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .subject-tag {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            background: var(--primary-subtle);
+            color: var(--primary);
+            border-radius: var(--radius-sm);
+            font-size: 0.72rem;
+            font-weight: 600;
+            margin-right: 0.25rem;
+            margin-top: 0.25rem;
+        }
+
+        .stats-center {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .no-data-msg {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--text-secondary);
+        }
+
+        .session-group {
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            margin-bottom: 1.25rem;
+        }
+
+        .session-group-header {
+            background: var(--bg-hover);
+            padding: 0.85rem 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+        }
+
+        .session-group-body {
+            padding: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <a href="index.html" class="logo">
+                    <div class="logo-icon">⚡</div>
+                    <span>TapSyncPro</span>
+                </a>
+                <nav class="nav">
+                    <a href="index.html" class="nav-link">Overview</a>
+                    <a href="dashboard.html" class="nav-link active">Statistics</a>
+                    <a href="attendance-manager.html" class="nav-link">Manage</a>
+                    <a href="students.html" class="nav-link">Students</a>
+                    <a href="scan-attendance.html" class="nav-link">Scan</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <!-- Top Header Row: Greeting Left | Faculty Panel Right -->
+            <div class="dashboard-header">
+                <div>
+                    <h1>Statistics 📊</h1>
+                    <p style="color:var(--text-secondary);margin-top:0.4rem;">
+                        Your attendance data by class &amp; subject
+                    </p>
+                    <div id="filter-section"
+                        style="margin-top:1rem; display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
+                        <select id="filter-section-sel" class="form-input" style="max-width:180px;"
+                            onchange="refreshAll()">
+                            <option value="">All Sections</option>
+                        </select>
+                        <select id="filter-subject-sel" class="form-input" style="max-width:220px;"
+                            onchange="refreshAll()">
+                            <option value="">All Subjects</option>
+                            <option value="Operating System">Operating System</option>
+                            <option value="Engineering Mathematics">Engineering Mathematics</option>
+                            <option value="Computer Networks">Computer Networks</option>
+                            <option value="DAA">DAA</option>
+                            <option value="ACD">ACD</option>
+                            <option value="DSA">DSA</option>
+                            <option value="Java">Java</option>
+                            <option value="Python">Python</option>
+                        </select>
+                        <input type="date" id="filter-date" class="form-input" style="max-width:180px;"
+                            onchange="refreshAll()">
+                    </div>
+                </div>
+
+                <!-- Faculty Panel — top right -->
+                <div class="faculty-panel" id="faculty-panel">
+                    <div class="faculty-panel-top">
+                        <div class="faculty-avatar" id="fav">?</div>
+                        <div>
+                            <div style="font-weight:700;" id="fpanel-name">Loading...</div>
+                            <div style="font-size:0.8rem; color:var(--text-secondary);" id="fpanel-email"></div>
+                        </div>
+                    </div>
+                    <div id="fpanel-subjects" style="line-height:2;"></div>
+                    <button onclick="logout()" class="btn btn-secondary" style="margin-top:0.25rem; width:100%;">
+                        🚪 Logout
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stats Cards grouped by class -->
+            <div class="stats-grid" id="stats-grid" style="margin-bottom:2rem;">
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon success">👥</div>
+                    </div>
+                    <div class="stat-value" id="stat-total">0</div>
+                    <div class="stat-label">Total Students</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon success">✓</div>
+                    </div>
+                    <div class="stat-value" id="stat-present">0</div>
+                    <div class="stat-label">Present Today (My Classes)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon error">✗</div>
+                    </div>
+                    <div class="stat-value" id="stat-absent">0</div>
+                    <div class="stat-label">Absent Today (My Classes)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon warning">📚</div>
+                    </div>
+                    <div class="stat-value" id="stat-sessions">0</div>
+                    <div class="stat-label">Sessions Conducted</div>
+                </div>
+            </div>
+
+            <!-- Attendance Trend Chart (shown only if data exists) -->
+            <div class="card" id="trend-card" style="margin-bottom:1.5rem; display:none;">
+                <div class="card-header">
+                    <h3 class="card-title">Attendance Trend — Last 7 Days</h3>
+                    <p class="card-subtitle" id="trend-subtitle">For your classes</p>
+                </div>
+                <div class="chart-container" style="height:280px;">
+                    <canvas id="attendanceChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Class distribution chart (only if data exists) -->
+            <div class="grid grid-2" style="margin-bottom:1.5rem;">
+                <div class="card" id="class-card" style="display:none;">
+                    <div class="card-header">
+                        <h3 class="card-title">Students by Section</h3>
+                        <p class="card-subtitle">Your class sections</p>
+                    </div>
+                    <div class="chart-container" style="height:250px;">
+                        <canvas id="classChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card" id="subject-card" style="display:none;">
+                    <div class="card-header">
+                        <h3 class="card-title">Attendance by Subject</h3>
+                        <p class="card-subtitle">Records per subject</p>
+                    </div>
+                    <div class="chart-container" style="height:250px;">
+                        <canvas id="subjectChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attendance History grouped by subject -->
+            <div class="card">
+                <div class="card-header flex-between">
+                    <div>
+                        <h3 class="card-title">Session History</h3>
+                        <p class="card-subtitle">Grouped by subject — your classes only</p>
+                    </div>
+                    <button onclick="refreshAll()" class="btn btn-secondary">🔄 Refresh</button>
+                </div>
+                <div id="session-history">
+                    <div class="loading-container">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/app.js"></script>
+    <script>
+        let facultyInfo = null;
+        let attendanceChart = null, classChart = null, subjectChart = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            checkAuthentication();
+        });
+
+        function checkAuthentication() {
+            const storedInfo = sessionStorage.getItem('faculty_info');
+            if (!storedInfo) {
+                window.location.href = 'login.html';
+                return;
+            }
+            facultyInfo = JSON.parse(storedInfo);
+
+            // Set faculty panel
+            document.getElementById('fpanel-name').textContent = facultyInfo.name;
+            document.getElementById('fpanel-email').textContent = facultyInfo.email;
+            document.getElementById('fav').textContent = facultyInfo.name.charAt(0).toUpperCase();
+
+            // Populate filter sections
+            populateSectionFilter();
+
+            // Set today as default date filter
+            document.getElementById('filter-date').value = new Date().toISOString().split('T')[0];
+
+            refreshAll();
+        }
+
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                sessionStorage.removeItem('faculty_info');
+                const email = localStorage.getItem('faculty_email');
+                if (email) {
+                    fetch('/api/faculty/logout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email })
+                    }).catch(() => { });
+                    localStorage.removeItem('faculty_email');
+                    localStorage.removeItem('remember_token');
+                }
+                window.location.href = 'login.html';
+            }
+        }
+
+        function populateSectionFilter() {
+            const sel = document.getElementById('filter-section-sel');
+            for (let i = 1; i <= 20; i++) {
+                const opt = document.createElement('option');
+                opt.value = `S-${String(i).padStart(2, '0')}`;
+                opt.textContent = `Section S-${String(i).padStart(2, '0')}`;
+                sel.appendChild(opt);
+            }
+        }
+
+        async function refreshAll() {
+            const section = document.getElementById('filter-section-sel').value;
+            const subject = document.getElementById('filter-subject-sel').value;
+            const date = document.getElementById('filter-date').value;
+
+            await Promise.all([
+                loadStats(section, subject, date),
+                loadSessionHistory(section, subject, date),
+                loadCharts(section, subject)
+            ]);
+        }
+
+        async function loadStats(section, subject, date) {
+            try {
+                // General student count
+                const studentParams = section ? `?section=${section}` : '';
+                const stuData = await fetch(`/api/students${studentParams}`).then(r => r.json());
+                const totalStudents = stuData.count || 0;
+                document.getElementById('stat-total').textContent = totalStudents;
+
+                // Get today's attendance for this faculty
+                const today = date || new Date().toISOString().split('T')[0];
+                let url = `/api/attendance/by-session?faculty=${encodeURIComponent(facultyInfo.name)}&date=${today}`;
+                if (section) url += `&section=${encodeURIComponent(section)}`;
+                if (subject) url += `&subject=${encodeURIComponent(subject)}`;
+
+                const attData = await fetch(url).then(r => r.json());
+                const records = attData.attendance || [];
+
+                // Count unique students present
+                const uniqueStudents = new Set(records.map(r => r.student_id)).size;
+                document.getElementById('stat-present').textContent = uniqueStudents;
+                document.getElementById('stat-absent').textContent = Math.max(0, totalStudents - uniqueStudents);
+
+                // Count distinct sessions
+                const sessionKeys = new Set(records.map(r =>
+                    `${r.recorded_by}|${r.subject}|${r.date}|${r.start_time}`
+                ));
+                document.getElementById('stat-sessions').textContent = sessionKeys.size;
+
+                // Show subjects in faculty panel
+                const subjectSet = new Set();
+                records.forEach(r => { if (r.subject) subjectSet.add(r.subject); });
+                const subjeTag = subjectSet.size > 0
+                    ? Array.from(subjectSet).map(s => `<span class="subject-tag">${s}</span>`).join('')
+                    : '<span style="color:var(--text-muted); font-size:0.8rem;">No sessions yet</span>';
+                document.getElementById('fpanel-subjects').innerHTML = subjeTag;
+
+            } catch (err) {
+                console.error('Stats error:', err);
+            }
+        }
+
+        async function loadCharts(section, subject) {
+            try {
+                // --- TREND CHART (last 7 days for this faculty) ---
+                const trendData = [];
+                const trendLabels = [];
+                for (let i = 6; i >= 0; i--) {
+                    const d = new Date();
+                    d.setDate(d.getDate() - i);
+                    const ds = d.toISOString().split('T')[0];
+                    trendLabels.push(d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }));
+
+                    let url = `/api/attendance/by-session?faculty=${encodeURIComponent(facultyInfo.name)}&date=${ds}`;
+                    if (section) url += `&section=${encodeURIComponent(section)}`;
+                    if (subject) url += `&subject=${encodeURIComponent(subject)}`;
+
+                    const res = await fetch(url).then(r => r.json());
+                    const unique = new Set((res.attendance || []).map(r => r.student_id)).size;
+                    trendData.push(unique);
+                }
+
+                const hasAnyTrend = trendData.some(v => v > 0);
+                const trendCard = document.getElementById('trend-card');
+
+                if (hasAnyTrend) {
+                    trendCard.style.display = '';
+                    if (attendanceChart) attendanceChart.destroy();
+                    const ctx = document.getElementById('attendanceChart').getContext('2d');
+                    attendanceChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: trendLabels,
+                            datasets: [{
+                                label: 'Present',
+                                data: trendData,
+                                borderColor: '#22c55e',
+                                backgroundColor: 'rgba(34,197,94,0.12)',
+                                tension: 0.4, fill: true,
+                                pointBackgroundColor: '#22c55e',
+                                pointBorderColor: '#fff',
+                                pointBorderWidth: 2, pointRadius: 5, pointHoverRadius: 7
+                            }]
+                        },
+                        options: {
+                            responsive: true, maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    backgroundColor: '#1e2330', titleColor: '#fff',
+                                    bodyColor: '#94a3b8', borderColor: '#374151',
+                                    borderWidth: 1, padding: 12, displayColors: false
+                                }
+                            },
+                            scales: {
+                                y: { beginAtZero: true, grid: { color: '#374151' }, ticks: { color: '#94a3b8' } },
+                                x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                            }
+                        }
+                    });
+                } else {
+                    trendCard.style.display = 'none';
+                }
+
+                // --- CLASS (section) CHART ---
+                const stuParams = section ? `?section=${section}` : '';
+                const stuData = await fetch(`/api/students${stuParams}`).then(r => r.json());
+                const students = stuData.students || [];
+
+                // Only show sections this faculty has taken attendance in
+                let facUrl = `/api/attendance/by-session?faculty=${encodeURIComponent(facultyInfo.name)}`;
+                if (section) facUrl += `&section=${encodeURIComponent(section)}`;
+                const facData = await fetch(facUrl).then(r => r.json());
+                const facSections = new Set((facData.attendance || []).map(r => r.section).filter(Boolean));
+
+                const sectionCounts = {};
+                students.forEach(s => {
+                    if (facSections.size === 0 || facSections.has(s.section)) {
+                        sectionCounts[s.section] = (sectionCounts[s.section] || 0) + 1;
+                    }
+                });
+
+                const classCard = document.getElementById('class-card');
+                if (Object.keys(sectionCounts).length > 0) {
+                    classCard.style.display = '';
+                    if (classChart) classChart.destroy();
+                    const cx = document.getElementById('classChart').getContext('2d');
+                    classChart = new Chart(cx, {
+                        type: 'bar',
+                        data: {
+                            labels: Object.keys(sectionCounts).sort(),
+                            datasets: [{
+                                label: 'Students',
+                                data: Object.keys(sectionCounts).sort().map(k => sectionCounts[k]),
+                                backgroundColor: '#22c55e', borderRadius: 6, barThickness: 36
+                            }]
+                        },
+                        options: {
+                            responsive: true, maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                y: { beginAtZero: true, grid: { color: '#374151' }, ticks: { color: '#94a3b8' } },
+                                x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                            }
+                        }
+                    });
+                } else {
+                    classCard.style.display = 'none';
+                }
+
+                // --- SUBJECT CHART ---
+                const subjectCounts = {};
+                (facData.attendance || []).forEach(r => {
+                    if (r.subject) subjectCounts[r.subject] = (subjectCounts[r.subject] || 0) + 1;
+                });
+
+                const subjectCard = document.getElementById('subject-card');
+                if (Object.keys(subjectCounts).length > 0) {
+                    subjectCard.style.display = '';
+                    if (subjectChart) subjectChart.destroy();
+                    const sx = document.getElementById('subjectChart').getContext('2d');
+                    subjectChart = new Chart(sx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: Object.keys(subjectCounts),
+                            datasets: [{
+                                data: Object.values(subjectCounts),
+                                backgroundColor: ['#22c55e', '#4ade80', '#16a34a', '#86efac', '#166534', '#bbf7d0', '#15803d', '#a7f3d0'],
+                                borderWidth: 0
+                            }]
+                        },
+                        options: {
+                            responsive: true, maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'right',
+                                    labels: { color: '#94a3b8', padding: 12, font: { size: 11 }, boxWidth: 14 }
+                                }
+                            }
+                        }
+                    });
+                } else {
+                    subjectCard.style.display = 'none';
+                }
+
+            } catch (err) {
+                console.error('Chart error:', err);
+            }
+        }
+
+        async function loadSessionHistory(section, subject, date) {
+            const container = document.getElementById('session-history');
+            container.innerHTML = '<div class="loading-container"><div class="spinner"></div></div>';
+
+            try {
+                let url = `/api/attendance/by-session?faculty=${encodeURIComponent(facultyInfo.name)}`;
+                if (section) url += `&section=${encodeURIComponent(section)}`;
+                if (subject) url += `&subject=${encodeURIComponent(subject)}`;
+                if (date) url += `&date=${date}`;
+
+                const data = await fetch(url).then(r => r.json());
+                const records = data.attendance || [];
+
+                if (records.length === 0) {
+                    container.innerHTML = `
+                        <div class="no-data-msg">
+                            <div style="font-size:3rem;margin-bottom:1rem;">📭</div>
+                            <h4>No attendance records found</h4>
+                            <p style="margin-top:0.5rem;">Take attendance in <a href="scan-attendance.html" style="color:var(--primary);">Scan page</a> to see data here.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Group by subject → then by date
+                const grouped = {};
+                records.forEach(r => {
+                    const subj = r.subject || 'General';
+                    const d = r.date || r.timestamp?.split('T')[0] || 'Unknown';
+                    const key = `${subj}|||${d}`;
+                    if (!grouped[key]) grouped[key] = { subject: subj, date: d, records: [], closed: r.session_closed };
+                    grouped[key].records.push(r);
+                    if (r.session_closed) grouped[key].closed = true;
+                });
+
+                container.innerHTML = Object.values(grouped)
+                    .sort((a, b) => b.date.localeCompare(a.date))
+                    .map(group => `
+                        <div class="session-group">
+                            <div class="session-group-header">
+                                <div>
+                                    <span class="badge badge-info" style="margin-right:0.5rem;">${group.subject}</span>
+                                    <span style="font-size:0.85rem; color:var(--text-secondary);">
+                                        📅 ${new Date(group.date).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                                    </span>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:0.75rem;">
+                                    <span class="badge ${group.closed ? 'badge-success' : 'badge-warning'}">
+                                        ${group.closed ? '✓ Closed' : '⏳ Open'}
+                                    </span>
+                                    <span style="font-size:0.85rem; color:var(--text-secondary);">
+                                        ${group.records.length} student${group.records.length !== 1 ? 's' : ''}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="session-group-body">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Student</th>
+                                            <th>Register No.</th>
+                                            <th>Time</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${group.records.map(r => `
+                                            <tr>
+                                                <td><strong>${r.student_name || '-'}</strong></td>
+                                                <td>${r.register_number || '-'}</td>
+                                                <td>${r.timestamp ? new Date(r.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                                                <td><span class="badge badge-success">Present</span></td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `).join('');
+
+            } catch (err) {
+                container.innerHTML = `<div class="alert alert-error">Failed to load history: ${err.message}</div>`;
+            }
+        }
+    </script>
+</body>
+
+</html>

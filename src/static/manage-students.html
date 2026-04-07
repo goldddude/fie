@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Analytics - TapSyncPro</title>
+    <meta name="description" content="Manage recorded students and view attendance percentage graphs for each section.">
+    <link rel="stylesheet" href="css/styles-pro.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        /* ─── Page-specific tokens ─── */
+        :root {
+            --risk-low: #ef4444;
+            --risk-mid: #f59e0b;
+            --risk-high: #22c55e;
+            --chart-h: 220px;
+        }
+
+        /* ─── Hero bar ─── */
+        .page-hero {
+            background: linear-gradient(135deg, #0f2027 0%, #1a2a1a 50%, #0f1419 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 2rem 0 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .page-hero h1 {
+            font-size: 1.9rem;
+        }
+
+        .page-hero p {
+            color: var(--text-secondary);
+            margin-top: .35rem;
+            font-size: .95rem;
+        }
+
+        /* ─── Summary stat row ─── */
+        .summary-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.25rem;
+            margin-bottom: 2rem;
+        }
+
+        .sum-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: var(--transition);
+        }
+
+        .sum-card:hover {
+            border-color: var(--border-light);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .sum-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            flex-shrink: 0;
+        }
+
+        .sum-icon.green {
+            background: rgba(34, 197, 94, .12);
+            color: var(--primary);
+        }
+
+        .sum-icon.blue {
+            background: rgba(59, 130, 246, .12);
+            color: var(--accent-blue);
+        }
+
+        .sum-icon.orange {
+            background: rgba(245, 158, 11, .12);
+            color: var(--accent-orange);
+        }
+
+        .sum-icon.purple {
+            background: rgba(139, 92, 246, .12);
+            color: var(--accent-purple);
+        }
+
+        .sum-value {
+            font-size: 1.85rem;
+            font-weight: 700;
+            line-height: 1;
+            color: var(--text-primary);
+        }
+
+        .sum-label {
+            font-size: .78rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            font-weight: 500;
+            margin-top: .2rem;
+        }
+
+        /* ─── Toolbar ─── */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.75rem;
+        }
+
+        .toolbar-search {
+            flex: 1;
+            min-width: 200px;
+            padding: .6rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: .9rem;
+            font-family: inherit;
+        }
+
+        .toolbar-search:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-subtle);
+        }
+
+        .view-toggle {
+            display: flex;
+            gap: .375rem;
+        }
+
+        .view-btn {
+            padding: .55rem .9rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: .85rem;
+            transition: var(--transition);
+        }
+
+        .view-btn.active,
+        .view-btn:hover {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+
+        .sort-select {
+            padding: .55rem .9rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: .85rem;
+            font-family: inherit;
+            cursor: pointer;
+        }
+
+        /* ─── Section cards grid ─── */
+        .sections-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+            gap: 1.75rem;
+        }
+
+        /* ─── Individual section card ─── */
+        .sec-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .sec-card:hover {
+            border-color: var(--border-light);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .sec-card-header {
+            padding: 1.25rem 1.5rem .75rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .sec-name {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+        }
+
+        .sec-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .sec-meta {
+            font-size: .8rem;
+            color: var(--text-secondary);
+            margin-top: .25rem;
+        }
+
+        .sec-pct-badge {
+            font-size: 1.5rem;
+            font-weight: 800;
+            padding: .3rem .8rem;
+            border-radius: var(--radius);
+            min-width: 72px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .pct-high {
+            background: rgba(34, 197, 94, .12);
+            color: #22c55e;
+        }
+
+        .pct-mid {
+            background: rgba(245, 158, 11, .12);
+            color: #f59e0b;
+        }
+
+        .pct-low {
+            background: rgba(239, 68, 68, .12);
+            color: #ef4444;
+        }
+
+        /* ─── Chart + today row ─── */
+        .sec-body {
+            padding: 1rem 1.5rem;
+        }
+
+        .sec-chart-row {
+            display: flex;
+            gap: 1.25rem;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .donut-wrap {
+            width: 100px;
+            height: 100px;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .donut-label {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: .75rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            text-align: center;
+            line-height: 1.2;
+            pointer-events: none;
+        }
+
+        .sec-info-col {
+            flex: 1;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: .5rem;
+            font-size: .82rem;
+        }
+
+        .info-label {
+            color: var(--text-secondary);
+        }
+
+        .info-val {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* ─── Mini progress bar ─── */
+        .mini-bar-wrap {
+            height: 6px;
+            background: var(--bg-hover);
+            border-radius: 99px;
+            overflow: hidden;
+            margin-top: .2rem;
+        }
+
+        .mini-bar {
+            height: 100%;
+            border-radius: 99px;
+            transition: width .6s ease;
+        }
+
+        /* ─── Today strip ─── */
+        .today-strip {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            padding: .6rem 1rem;
+            font-size: .82rem;
+            border: 1px solid var(--border);
+        }
+
+        .today-strip .t-label {
+            color: var(--text-secondary);
+        }
+
+        .today-strip .t-val {
+            font-weight: 700;
+            font-size: .95rem;
+        }
+
+        /* ─── Expand toggle ─── */
+        .expand-btn {
+            width: 100%;
+            padding: .65rem;
+            background: transparent;
+            border: none;
+            border-top: 1px solid var(--border);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: .8rem;
+            font-weight: 600;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: .4rem;
+            transition: var(--transition);
+        }
+
+        .expand-btn:hover {
+            background: var(--bg-hover);
+            color: var(--primary);
+        }
+
+        .expand-arrow {
+            transition: transform .3s ease;
+        }
+
+        .expand-btn.open .expand-arrow {
+            transform: rotate(180deg);
+        }
+
+        /* ─── Student breakdown panel ─── */
+        .student-panel {
+            display: none;
+            border-top: 1px solid var(--border);
+            background: var(--bg-secondary);
+            max-height: 380px;
+            overflow-y: auto;
+        }
+
+        .student-panel.open {
+            display: block;
+        }
+
+        .stu-row {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            padding: .65rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            transition: background .15s;
+        }
+
+        .stu-row:hover {
+            background: var(--bg-hover);
+        }
+
+        .stu-row:last-child {
+            border-bottom: none;
+        }
+
+        .stu-num {
+            font-size: .75rem;
+            color: var(--text-muted);
+            width: 22px;
+            flex-shrink: 0;
+        }
+
+        .stu-name-col {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .stu-name {
+            font-size: .85rem;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .stu-reg {
+            font-size: .72rem;
+            color: var(--text-secondary);
+        }
+
+        .stu-attended {
+            font-size: .75rem;
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+
+        .stu-pct-col {
+            width: 110px;
+            flex-shrink: 0;
+        }
+
+        .stu-pct-num {
+            font-size: .85rem;
+            font-weight: 700;
+            text-align: right;
+            margin-bottom: 2px;
+        }
+
+        .stu-bar-wrap {
+            height: 5px;
+            background: var(--bg-hover);
+            border-radius: 99px;
+            overflow: hidden;
+        }
+
+        .stu-bar {
+            height: 100%;
+            border-radius: 99px;
+        }
+
+        .risk-badge {
+            font-size: .65rem;
+            font-weight: 700;
+            padding: .15rem .45rem;
+            border-radius: var(--radius-sm);
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            flex-shrink: 0;
+            width: 52px;
+            text-align: center;
+        }
+
+        .risk-low {
+            background: rgba(239, 68, 68, .12);
+            color: #ef4444;
+            border: 1px solid #ef4444;
+        }
+
+        .risk-mid {
+            background: rgba(245, 158, 11, .12);
+            color: #f59e0b;
+            border: 1px solid #f59e0b;
+        }
+
+        .risk-high {
+            background: rgba(34, 197, 94, .12);
+            color: #22c55e;
+            border: 1px solid #22c55e;
+        }
+
+        .nfc-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        /* ─── All-students table view ─── */
+        .table-view {
+            display: none;
+        }
+
+        .table-view.active {
+            display: block;
+        }
+
+        .charts-view.hidden {
+            display: none;
+        }
+
+        /* ─── Empty / Loading states ─── */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state .empty-icon {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .empty-state h3 {
+            font-size: 1.2rem;
+            color: var(--text-primary);
+            margin-bottom: .5rem;
+        }
+
+        /* ─── Responsive ─── */
+        @media (max-width: 900px) {
+            .summary-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .sections-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .summary-row {
+                grid-template-columns: 1fr;
+            }
+
+            .toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+
+        /* ─── Scrollbar ─── */
+        .student-panel::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .student-panel::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        .student-panel::-webkit-scrollbar-thumb {
+            background: var(--border-light);
+            border-radius: 99px;
+        }
+
+        /* ─── Pulse animation for loading ─── */
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: .4;
+            }
+        }
+
+        .skeleton {
+            animation: pulse 1.5s ease-in-out infinite;
+            background: var(--bg-hover);
+            border-radius: var(--radius);
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <a href="index.html" class="logo">
+                    <div class="logo-icon">⚡</div>
+                    <span>TapSyncPro</span>
+                </a>
+                <nav class="nav">
+                    <a href="index.html" class="nav-link">Overview</a>
+                    <a href="dashboard.html" class="nav-link">Statistics</a>
+                    <a href="students.html" class="nav-link">Students</a>
+                    <a href="manage-students.html" class="nav-link active">Analytics</a>
+                    <a href="scan-attendance.html" class="nav-link">Scan</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero -->
+    <div class="page-hero">
+        <div class="container">
+            <div class="flex-between">
+                <div>
+                    <h1>📊 Student Attendance Analytics</h1>
+                    <p>Section-wise attendance graphs, student risk levels, and class presence tracking</p>
+                </div>
+                <div class="flex gap-2">
+                    <a href="students.html" class="btn btn-secondary">👥 Manage Students</a>
+                    <button onclick="refreshAll()" class="btn btn-primary" id="refresh-btn">🔄 Refresh</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <main class="main" style="padding-top: 0;">
+        <div class="container">
+
+            <!-- Summary Cards -->
+            <div class="summary-row" id="summary-row">
+                <div class="sum-card">
+                    <div class="sum-icon green skeleton" style="width:48px;height:48px"></div>
+                    <div>
+                        <div class="skeleton" style="width:60px;height:28px;margin-bottom:6px"></div>
+                        <div class="skeleton" style="width:80px;height:12px"></div>
+                    </div>
+                </div>
+                <div class="sum-card">
+                    <div class="sum-icon blue skeleton" style="width:48px;height:48px"></div>
+                    <div>
+                        <div class="skeleton" style="width:60px;height:28px;margin-bottom:6px"></div>
+                        <div class="skeleton" style="width:80px;height:12px"></div>
+                    </div>
+                </div>
+                <div class="sum-card">
+                    <div class="sum-icon orange skeleton" style="width:48px;height:48px"></div>
+                    <div>
+                        <div class="skeleton" style="width:60px;height:28px;margin-bottom:6px"></div>
+                        <div class="skeleton" style="width:80px;height:12px"></div>
+                    </div>
+                </div>
+                <div class="sum-card">
+                    <div class="sum-icon purple skeleton" style="width:48px;height:48px"></div>
+                    <div>
+                        <div class="skeleton" style="width:60px;height:28px;margin-bottom:6px"></div>
+                        <div class="skeleton" style="width:80px;height:12px"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Toolbar -->
+            <div class="toolbar">
+                <input type="text" id="search-input" class="toolbar-search"
+                    placeholder="🔍 Search student name or register number…" oninput="filterStudents()">
+                <div class="view-toggle">
+                    <button class="view-btn active" id="btn-charts" onclick="setView('charts')">📊 Charts</button>
+                    <button class="view-btn" id="btn-table" onclick="setView('table')">📋 Table</button>
+                </div>
+                <select class="sort-select" id="sort-select" onchange="sortSections()">
+                    <option value="section">Sort: Section A→Z</option>
+                    <option value="pct-desc">Sort: Attendance ↓</option>
+                    <option value="pct-asc">Sort: Attendance ↑</option>
+                    <option value="students">Sort: Most Students</option>
+                </select>
+            </div>
+
+            <!-- Charts View -->
+            <div id="charts-view">
+                <div class="sections-grid" id="sections-grid">
+                    <!-- skeleton -->
+                    <div class="sec-card" style="pointer-events:none">
+                        <div class="sec-card-header">
+                            <div>
+                                <div class="skeleton" style="width:100px;height:20px;margin-bottom:8px"></div>
+                                <div class="skeleton" style="width:140px;height:12px"></div>
+                            </div>
+                            <div class="skeleton" style="width:64px;height:48px;border-radius:8px"></div>
+                        </div>
+                        <div class="sec-body">
+                            <div class="skeleton" style="width:100%;height:100px;border-radius:8px"></div>
+                        </div>
+                    </div>
+                    <div class="sec-card" style="pointer-events:none">
+                        <div class="sec-card-header">
+                            <div>
+                                <div class="skeleton" style="width:100px;height:20px;margin-bottom:8px"></div>
+                                <div class="skeleton" style="width:140px;height:12px"></div>
+                            </div>
+                            <div class="skeleton" style="width:64px;height:48px;border-radius:8px"></div>
+                        </div>
+                        <div class="sec-body">
+                            <div class="skeleton" style="width:100%;height:100px;border-radius:8px"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table View -->
+            <div id="table-view" class="table-view">
+                <div class="card">
+                    <div class="card-header flex-between">
+                        <div>
+                            <h3 class="card-title">All Students — Attendance Overview</h3>
+                            <p class="card-subtitle" id="table-subtitle">Loading…</p>
+                        </div>
+                        <div style="display:flex;gap:.5rem;align-items:center">
+                            <label style="font-size:.8rem;color:var(--text-secondary)">Section:</label>
+                            <select class="sort-select" id="section-filter" onchange="renderTable()">
+                                <option value="all">All Sections</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="table-body-wrap">
+                        <div class="loading-container">
+                            <div class="spinner"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="js/app.js"></script>
+    <script>
+        /* ═══════════════════════════════════════════════════════════
+           State
+        ═════════════════════════════════════════════════════════════ */
+        let sectionsData = [];          // raw from API
+        let filteredSections = [];      // after search / sort
+        let chartInstances = {};        // canvasId -> Chart
+        let currentView = 'charts';
+
+        // Palette for section colors
+        const PALETTE = [
+            '#22c55e', '#3b82f6', '#8b5cf6', '#f59e0b',
+            '#06b6d4', '#ec4899', '#10b981', '#f97316',
+            '#6366f1', '#84cc16', '#14b8a6', '#a855f7'
+        ];
+
+        /* ═══════════════════════════════════════════════════════════
+           Bootstrap
+        ═════════════════════════════════════════════════════════════ */
+        document.addEventListener('DOMContentLoaded', () => {
+            loadAll();
+        });
+
+        async function loadAll() {
+            try {
+                const data = await APIClient.request('/api/attendance/section-stats');
+                sectionsData = data.sections || [];
+                filteredSections = [...sectionsData];
+                renderSummary();
+                renderCharts();
+                populateSectionFilter();
+            } catch (err) {
+                document.getElementById('sections-grid').innerHTML = `
+                <div class="sec-card" style="grid-column:1/-1">
+                    <div style="padding:2.5rem;text-align:center;color:var(--error)">
+                        <div style="font-size:2rem;margin-bottom:.75rem">⚠️</div>
+                        <strong>Failed to load data</strong>
+                        <p style="margin-top:.4rem;color:var(--text-secondary);font-size:.88rem">${err.message}</p>
+                        <button onclick="loadAll()" class="btn btn-secondary" style="margin-top:1rem">Try Again</button>
+                    </div>
+                </div>`;
+                document.getElementById('table-body-wrap').innerHTML = '';
+                document.getElementById('summary-row').innerHTML = summarySkeletonHtml();
+            }
+        }
+
+        function refreshAll() {
+            const btn = document.getElementById('refresh-btn');
+            btn.textContent = '⏳ Loading…';
+            btn.disabled = true;
+            Object.values(chartInstances).forEach(c => c.destroy());
+            chartInstances = {};
+            document.getElementById('sections-grid').innerHTML = skeletonCards();
+            loadAll().finally(() => {
+                btn.textContent = '🔄 Refresh';
+                btn.disabled = false;
+            });
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           Summary cards
+        ═════════════════════════════════════════════════════════════ */
+        function renderSummary() {
+            if (!sectionsData.length) {
+                document.getElementById('summary-row').innerHTML = summarySkeletonHtml();
+                return;
+            }
+            const totalStudents = sectionsData.reduce((a, s) => a + s.total_students, 0);
+            const totalSections = sectionsData.length;
+            const overallAvgPct = sectionsData.length
+                ? (sectionsData.reduce((a, s) => a + s.avg_attendance_pct, 0) / sectionsData.length).toFixed(1)
+                : 0;
+            const totalClasses = Math.max(...sectionsData.map(s => s.total_classes), 0);
+
+            // At-risk: students with pct < 75
+            const atRisk = sectionsData.reduce((a, s) =>
+                a + s.students.filter(st => st.attendance_pct < 75).length, 0);
+
+            document.getElementById('summary-row').innerHTML = `
+            <div class="sum-card">
+                <div class="sum-icon green">👥</div>
+                <div>
+                    <div class="sum-value">${totalStudents}</div>
+                    <div class="sum-label">Total Students</div>
+                </div>
+            </div>
+            <div class="sum-card">
+                <div class="sum-icon blue">🏛️</div>
+                <div>
+                    <div class="sum-value">${totalSections}</div>
+                    <div class="sum-label">Sections</div>
+                </div>
+            </div>
+            <div class="sum-card">
+                <div class="sum-icon orange">📈</div>
+                <div>
+                    <div class="sum-value">${overallAvgPct}%</div>
+                    <div class="sum-label">Overall Avg Attendance</div>
+                </div>
+            </div>
+            <div class="sum-card">
+                <div class="sum-icon purple">⚠️</div>
+                <div>
+                    <div class="sum-value" style="color:${atRisk > 0 ? '#ef4444' : 'var(--text-primary)'}">${atRisk}</div>
+                    <div class="sum-label">Students Below 75%</div>
+                </div>
+            </div>
+        `;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           Search + Sort
+        ═════════════════════════════════════════════════════════════ */
+        function filterStudents() {
+            const q = document.getElementById('search-input').value.toLowerCase().trim();
+            if (!q) {
+                filteredSections = [...sectionsData];
+            } else {
+                // Filter: keep sections that have at least one matching student
+                filteredSections = sectionsData.map(sec => {
+                    const matchStudents = sec.students.filter(st =>
+                        st.name.toLowerCase().includes(q) ||
+                        st.register_number.toLowerCase().includes(q)
+                    );
+                    // Also match section name itself
+                    if (sec.section.toLowerCase().includes(q)) return sec;
+                    if (matchStudents.length === 0) return null;
+                    return { ...sec, students: matchStudents, _filtered: true };
+                }).filter(Boolean);
+            }
+            sortSections(false);
+        }
+
+        function sortSections(reRender = true) {
+            const val = document.getElementById('sort-select').value;
+            filteredSections.sort((a, b) => {
+                if (val === 'section') return a.section.localeCompare(b.section);
+                if (val === 'pct-desc') return b.avg_attendance_pct - a.avg_attendance_pct;
+                if (val === 'pct-asc') return a.avg_attendance_pct - b.avg_attendance_pct;
+                if (val === 'students') return b.total_students - a.total_students;
+                return 0;
+            });
+            if (reRender) {
+                Object.values(chartInstances).forEach(c => c.destroy());
+                chartInstances = {};
+                renderCharts();
+                renderTable();
+            } else {
+                Object.values(chartInstances).forEach(c => c.destroy());
+                chartInstances = {};
+                renderCharts();
+                renderTable();
+            }
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           Charts View
+        ═════════════════════════════════════════════════════════════ */
+        function renderCharts() {
+            const grid = document.getElementById('sections-grid');
+
+            if (!filteredSections.length) {
+                grid.innerHTML = `
+                <div style="grid-column:1/-1" class="empty-state">
+                    <div class="empty-icon">🔍</div>
+                    <h3>No sections found</h3>
+                    <p>Try a different search term or add students first.</p>
+                </div>`;
+                return;
+            }
+
+            grid.innerHTML = filteredSections.map((sec, i) => buildSectionCard(sec, i)).join('');
+
+            // After DOM paint, init charts
+            requestAnimationFrame(() => {
+                filteredSections.forEach((sec, i) => initDonut(sec, i));
+            });
+        }
+
+        function buildSectionCard(sec, i) {
+            const color = PALETTE[i % PALETTE.length];
+            const pct = sec.avg_attendance_pct;
+            const pctClass = pct >= 90 ? 'pct-high' : pct >= 75 ? 'pct-mid' : 'pct-low';
+            const todayPct = sec.today_attendance_pct;
+            const canvasId = `donut-${i}`;
+            const panelId = `panel-${i}`;
+            const btnId = `expbtn-${i}`;
+
+            const nfcCount = sec.students.filter(s => s.has_nfc).length;
+
+            return `
+        <div class="sec-card" id="seccard-${i}">
+            <div class="sec-card-header">
+                <div>
+                    <div class="sec-name">
+                        <span class="sec-dot" style="background:${color}"></span>
+                        Section ${sec.section}
+                    </div>
+                    <div class="sec-meta">
+                        ${sec.total_students} students &nbsp;·&nbsp;
+                        ${sec.total_classes} class day${sec.total_classes !== 1 ? 's' : ''} &nbsp;·&nbsp;
+                        ${nfcCount} NFC registered
+                    </div>
+                </div>
+                <div class="sec-pct-badge ${pctClass}">${pct}%</div>
+            </div>
+
+            <div class="sec-body">
+                <div class="sec-chart-row">
+                    <div class="donut-wrap">
+                        <canvas id="${canvasId}" width="100" height="100"></canvas>
+                        <div class="donut-label" id="lbl-${i}">${pct}%<br><span style="font-size:.6rem;font-weight:400;color:var(--text-secondary)">avg</span></div>
+                    </div>
+                    <div class="sec-info-col">
+                        <div class="info-row">
+                            <span class="info-label">Avg Attendance</span>
+                            <span class="info-val">${pct}%</span>
+                        </div>
+                        <div class="mini-bar-wrap">
+                            <div class="mini-bar" style="width:${pct}%;background:${color}"></div>
+                        </div>
+
+                        <div class="info-row" style="margin-top:.75rem">
+                            <span class="info-label">Today's Attendance</span>
+                            <span class="info-val" style="color:${todayPct >= 75 ? '#22c55e' : '#ef4444'}">${todayPct}%</span>
+                        </div>
+                        <div class="mini-bar-wrap">
+                            <div class="mini-bar" style="width:${todayPct}%;background:${todayPct >= 90 ? '#22c55e' : todayPct >= 75 ? '#f59e0b' : '#ef4444'}"></div>
+                        </div>
+
+                        <div class="info-row" style="margin-top:.75rem">
+                            <span class="info-label">Present Today</span>
+                            <span class="info-val">${sec.today_present} / ${sec.total_students}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- At-risk quick note -->
+                ${buildAtRiskStrip(sec, color)}
+            </div>
+
+            <button class="expand-btn" id="${btnId}" onclick="togglePanel(${i})">
+                <span>👁 Show Students (${sec.students.length})</span>
+                <span class="expand-arrow">▼</span>
+            </button>
+
+            <div class="student-panel" id="${panelId}">
+                ${buildStudentRows(sec.students)}
+            </div>
+        </div>`;
+        }
+
+        function buildAtRiskStrip(sec, color) {
+            const atRisk = sec.students.filter(s => s.attendance_pct < 75).length;
+            const goodCount = sec.students.filter(s => s.attendance_pct >= 90).length;
+            if (!sec.total_classes) {
+                return `<div style="font-size:.78rem;color:var(--text-muted);margin-top:.25rem">No attendance data recorded yet.</div>`;
+            }
+            return `
+        <div style="display:flex;gap:.5rem;margin-top:.5rem;flex-wrap:wrap">
+            <span style="font-size:.75rem;padding:.2rem .65rem;border-radius:99px;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.25)">
+                ✓ ${goodCount} Good (≥90%)
+            </span>
+            <span style="font-size:.75rem;padding:.2rem .65rem;border-radius:99px;background:rgba(245,158,11,.1);color:#f59e0b;border:1px solid rgba(245,158,11,.25)">
+                ⚡ ${sec.students.filter(s => s.attendance_pct >= 75 && s.attendance_pct < 90).length} Average (75–90%)
+            </span>
+            ${atRisk > 0 ? `<span style="font-size:.75rem;padding:.2rem .65rem;border-radius:99px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.25)">
+                ⚠ ${atRisk} At Risk (&lt;75%)</span>` : ''}
+        </div>`;
+        }
+
+        function buildStudentRows(students) {
+            if (!students.length) return `<div class="empty-state" style="padding:2rem"><p>No students in this section.</p></div>`;
+            return students.map((st, i) => {
+                const pct = st.attendance_pct;
+                const barColor = pct >= 90 ? '#22c55e' : pct >= 75 ? '#f59e0b' : '#ef4444';
+                const riskClass = pct >= 90 ? 'risk-high' : pct >= 75 ? 'risk-mid' : 'risk-low';
+                const riskLabel = pct >= 90 ? 'Good' : pct >= 75 ? 'Avg' : 'Risk';
+                return `
+            <div class="stu-row">
+                <span class="stu-num">${i + 1}</span>
+                <span class="nfc-dot" style="background:${st.has_nfc ? '#22c55e' : '#6b7280'}" title="${st.has_nfc ? 'NFC Registered' : 'No NFC'}"></span>
+                <div class="stu-name-col">
+                    <div class="stu-name">${st.name}</div>
+                    <div class="stu-reg">${st.register_number}</div>
+                </div>
+                <span class="stu-attended">${st.attended}/${st.total_classes}</span>
+                <div class="stu-pct-col">
+                    <div class="stu-pct-num" style="color:${barColor}">${pct}%</div>
+                    <div class="stu-bar-wrap">
+                        <div class="stu-bar" style="width:${pct}%;background:${barColor}"></div>
+                    </div>
+                </div>
+                <span class="risk-badge ${riskClass}">${riskLabel}</span>
+            </div>`;
+            }).join('');
+        }
+
+        function initDonut(sec, i) {
+            const canvas = document.getElementById(`donut-${i}`);
+            if (!canvas) return;
+            const color = PALETTE[i % PALETTE.length];
+            const pct = sec.avg_attendance_pct;
+
+            if (chartInstances[`donut-${i}`]) chartInstances[`donut-${i}`].destroy();
+
+            chartInstances[`donut-${i}`] = new Chart(canvas.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [pct, 100 - pct],
+                        backgroundColor: [color, 'rgba(55,65,81,0.5)'],
+                        borderWidth: 0,
+                        hoverOffset: 0
+                    }]
+                },
+                options: {
+                    cutout: '72%',
+                    animation: { animateRotate: true, duration: 800 },
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                    responsive: false,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        function togglePanel(i) {
+            const panel = document.getElementById(`panel-${i}`);
+            const btn = document.getElementById(`expbtn-${i}`);
+            const sec = filteredSections[i];
+            const isOpen = panel.classList.toggle('open');
+            btn.classList.toggle('open', isOpen);
+            btn.querySelector('span').textContent = isOpen
+                ? `🙈 Hide Students (${sec.students.length})`
+                : `👁 Show Students (${sec.students.length})`;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           Table View
+        ═════════════════════════════════════════════════════════════ */
+        function populateSectionFilter() {
+            const sel = document.getElementById('section-filter');
+            sel.innerHTML = '<option value="all">All Sections</option>' +
+                sectionsData.map(s => `<option value="${s.section}">Section ${s.section}</option>`).join('');
+        }
+
+        function renderTable() {
+            const filterVal = document.getElementById('section-filter').value;
+            const q = document.getElementById('search-input').value.toLowerCase().trim();
+
+            let rows = [];
+            const sections = filterVal === 'all' ? sectionsData : sectionsData.filter(s => s.section === filterVal);
+
+            sections.forEach(sec => {
+                sec.students.forEach(st => {
+                    if (q && !st.name.toLowerCase().includes(q) && !st.register_number.toLowerCase().includes(q) && !sec.section.toLowerCase().includes(q)) return;
+                    rows.push({ ...st, section: sec.section, total_classes: sec.total_classes });
+                });
+            });
+
+            document.getElementById('table-subtitle').textContent = `${rows.length} students`;
+
+            if (!rows.length) {
+                document.getElementById('table-body-wrap').innerHTML = `
+                <div class="empty-state"><div class="empty-icon">📭</div><h3>No students found</h3></div>`;
+                return;
+            }
+
+            document.getElementById('table-body-wrap').innerHTML = `
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Register No.</th>
+                        <th>Name</th>
+                        <th>Section</th>
+                        <th>NFC</th>
+                        <th>Attended / Classes</th>
+                        <th>Attendance %</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows.map((st, idx) => {
+                const pct = st.attendance_pct;
+                const bar = pct >= 90 ? '#22c55e' : pct >= 75 ? '#f59e0b' : '#ef4444';
+                const rc = pct >= 90 ? 'risk-high' : pct >= 75 ? 'risk-mid' : 'risk-low';
+                const rl = pct >= 90 ? 'Good' : pct >= 75 ? 'Average' : 'At Risk';
+                return `
+                        <tr>
+                            <td style="color:var(--text-muted);font-size:.8rem">${idx + 1}</td>
+                            <td><strong>${st.register_number}</strong></td>
+                            <td>${st.name}</td>
+                            <td><span class="badge badge-info">SEC ${st.section}</span></td>
+                            <td>
+                                <span class="badge ${st.has_nfc ? 'badge-success' : 'badge-warning'}" style="font-size:.65rem">
+                                    ${st.has_nfc ? '✓ Yes' : '✗ No'}
+                                </span>
+                            </td>
+                            <td style="font-size:.85rem">${st.attended} / ${st.total_classes}</td>
+                            <td>
+                                <div style="display:flex;align-items:center;gap:.6rem">
+                                    <div style="flex:1;height:6px;background:var(--bg-hover);border-radius:99px;overflow:hidden;min-width:60px">
+                                        <div style="width:${pct}%;height:100%;background:${bar};border-radius:99px"></div>
+                                    </div>
+                                    <span style="color:${bar};font-weight:700;font-size:.85rem;min-width:36px">${pct}%</span>
+                                </div>
+                            </td>
+                            <td><span class="risk-badge ${rc}">${rl}</span></td>
+                        </tr>`;
+            }).join('')}
+                </tbody>
+            </table>
+        </div>`;
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           View toggle
+        ═════════════════════════════════════════════════════════════ */
+        function setView(v) {
+            currentView = v;
+            document.getElementById('charts-view').style.display = v === 'charts' ? '' : 'none';
+            document.getElementById('table-view').style.display = v === 'table' ? 'block' : 'none';
+            document.getElementById('btn-charts').classList.toggle('active', v === 'charts');
+            document.getElementById('btn-table').classList.toggle('active', v === 'table');
+            if (v === 'table') renderTable();
+        }
+
+        /* ═══════════════════════════════════════════════════════════
+           Skeleton helpers
+        ═════════════════════════════════════════════════════════════ */
+        function skeletonCards() {
+            return [1, 2].map(() => `
+        <div class="sec-card" style="pointer-events:none">
+            <div class="sec-card-header">
+                <div><div class="skeleton" style="width:100px;height:20px;margin-bottom:8px"></div><div class="skeleton" style="width:140px;height:12px"></div></div>
+                <div class="skeleton" style="width:64px;height:48px;border-radius:8px"></div>
+            </div>
+            <div class="sec-body"><div class="skeleton" style="width:100%;height:110px;border-radius:8px"></div></div>
+        </div>`).join('');
+        }
+        function summarySkeletonHtml() {
+            return [1, 2, 3, 4].map(() => `
+        <div class="sum-card">
+            <div class="skeleton" style="width:48px;height:48px;border-radius:8px"></div>
+            <div><div class="skeleton" style="width:60px;height:28px;margin-bottom:6px"></div><div class="skeleton" style="width:80px;height:12px"></div></div>
+        </div>`).join('');
+        }
+    </script>
+</body>
+
+</html>

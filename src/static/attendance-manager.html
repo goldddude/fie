@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Manager - TapSyncPro</title>
+    <meta name="description" content="Manage and view student attendance records by subject for your classes.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/styles-pro.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        /* -------- Page-specific styles -------- */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(18px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: -400px 0;
+            }
+
+            100% {
+                background-position: 400px 0;
+            }
+        }
+
+        .page-hero {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .page-hero h1 {
+            margin: 0;
+        }
+
+        .page-hero p {
+            color: var(--text-secondary);
+            margin-top: 0.35rem;
+            font-size: 0.95rem;
+        }
+
+        /* Filter bar */
+        .filter-bar {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            margin-bottom: 1.75rem;
+            padding: 1.25rem 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+        }
+
+        .filter-bar .form-group {
+            margin-bottom: 0;
+            min-width: 160px;
+        }
+
+        .filter-bar .form-label {
+            font-size: 0.78rem;
+        }
+
+        .filter-bar .form-input {
+            padding: 0.55rem 0.9rem;
+            font-size: 0.875rem;
+        }
+
+        /* Subject cards grid */
+        .subject-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .subject-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            transition: var(--transition);
+            animation: fadeInUp 0.4s ease both;
+            cursor: pointer;
+        }
+
+        .subject-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 1px var(--primary), var(--shadow-lg);
+            transform: translateY(-3px);
+        }
+
+        .subject-card-header {
+            padding: 1.25rem 1.5rem;
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-hover) 100%);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .subject-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius);
+            background: var(--primary-subtle);
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            flex-shrink: 0;
+        }
+
+        .subject-name {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            flex: 1;
+        }
+
+        .subject-card-body {
+            padding: 1.25rem 1.5rem;
+        }
+
+        .subject-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Big circular progress */
+        .att-ring-wrap {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 0.75rem;
+        }
+
+        .att-ring {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.95rem;
+            font-weight: 800;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .att-ring-inner {
+            position: absolute;
+            width: 54px;
+            height: 54px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            z-index: 1;
+        }
+
+        .att-ring-pct {
+            font-size: 0.9rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .att-ring-lbl {
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .att-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .att-stat-row {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+        }
+
+        .att-stat-val {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .view-btn {
+            margin-top: 1.1rem;
+            width: 100%;
+            padding: 0.6rem 1rem;
+            background: var(--primary-subtle);
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            border-radius: var(--radius);
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .view-btn:hover {
+            background: var(--primary);
+            color: #000;
+        }
+
+        /* -------- Detail Drawer / Modal -------- */
+        .drawer-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(4px);
+            z-index: 200;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.25s;
+        }
+
+        .drawer-overlay.open {
+            display: flex;
+            opacity: 1;
+        }
+
+        .drawer {
+            position: fixed;
+            top: 0;
+            right: -100%;
+            width: min(680px, 100vw);
+            height: 100vh;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border);
+            z-index: 201;
+            overflow-y: auto;
+            transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .drawer.open {
+            right: 0;
+        }
+
+        .drawer-head {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            background: var(--bg-card);
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+
+        .drawer-close {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: var(--radius);
+            width: 36px;
+            height: 36px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .drawer-close:hover {
+            border-color: var(--error);
+            color: var(--error);
+        }
+
+        .drawer-body {
+            padding: 1.5rem;
+            flex: 1;
+        }
+
+        /* Session list inside drawer */
+        .session-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .session-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .session-item-head {
+            padding: 0.9rem 1.2rem;
+            background: var(--bg-hover);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .session-head-left {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .session-item-body {
+            overflow-x: auto;
+        }
+
+        /* Attendance % progress bar */
+        .pct-bar-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-top: 0.35rem;
+        }
+
+        .pct-bar-bg {
+            flex: 1;
+            height: 6px;
+            background: var(--border);
+            border-radius: 99px;
+            overflow: hidden;
+        }
+
+        .pct-bar-fill {
+            height: 100%;
+            border-radius: 99px;
+            transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .pct-bar-lbl {
+            font-size: 0.78rem;
+            font-weight: 700;
+            min-width: 38px;
+            text-align: right;
+        }
+
+        /* Student list in drawer */
+        .student-att-row {
+            padding: 0.65rem 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s;
+        }
+
+        .student-att-row:last-child {
+            border-bottom: none;
+        }
+
+        .student-att-row:hover {
+            background: var(--bg-hover);
+        }
+
+        .stu-init {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary-subtle);
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+
+        .stu-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .stu-name {
+            font-weight: 600;
+            font-size: 0.88rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .stu-reg {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Overall student attendance summary */
+        .stu-summary-table {
+            width: 100%;
+        }
+
+        .stu-summary-table th {
+            font-size: 0.78rem;
+        }
+
+        .stu-summary-table td {
+            font-size: 0.85rem;
+            vertical-align: middle;
+        }
+
+        /* Empty & error states */
+        .empty-state {
+            text-align: center;
+            padding: 3.5rem 1rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state .emoji {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Skeleton loader */
+        .skeleton {
+            background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-hover) 50%, var(--bg-card) 75%);
+            background-size: 400px 100%;
+            animation: shimmer 1.4s infinite;
+            border-radius: var(--radius);
+        }
+
+        .skeleton-card {
+            height: 200px;
+            border-radius: var(--radius-lg);
+        }
+
+        /* Tabs inside drawer */
+        .tab-row {
+            display: flex;
+            gap: 0.25rem;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 1.25rem;
+        }
+
+        .tab-btn {
+            padding: 0.55rem 1rem;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: var(--transition);
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        /* Responsive tweaks */
+        @media (max-width: 600px) {
+            .subject-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filter-bar {
+                flex-direction: column;
+            }
+
+            .drawer {
+                width: 100vw;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <a href="index.html" class="logo">
+                    <div class="logo-icon">⚡</div>
+                    <span>TapSyncPro</span>
+                </a>
+                <nav class="nav">
+                    <a href="index.html" class="nav-link">Overview</a>
+                    <a href="dashboard.html" class="nav-link">Statistics</a>
+                    <a href="attendance-manager.html" class="nav-link active">Manage</a>
+                    <a href="students.html" class="nav-link">Students</a>
+                    <a href="scan-attendance.html" class="nav-link">Scan</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+
+            <!-- Page Hero -->
+            <div class="page-hero">
+                <div>
+                    <h1>📋 Attendance Manager</h1>
+                    <p>Track student attendance per subject — view sessions, percentages, and per-student breakdowns.
+                    </p>
+                </div>
+                <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+                    <button onclick="exportReport()" class="btn btn-secondary" id="btn-export">
+                        📥 Export CSV
+                    </button>
+                    <button onclick="logout()" class="btn btn-secondary" id="btn-logout">
+                        🚪 Logout
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filter Bar -->
+            <div class="filter-bar">
+                <div class="form-group">
+                    <label class="form-label">Section</label>
+                    <select id="filter-section" class="form-input" onchange="loadSubjects()">
+                        <option value="">All Sections</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Subject</label>
+                    <select id="filter-subject" class="form-input" onchange="loadSubjects()">
+                        <option value="">All Subjects</option>
+                        <option value="Operating System">Operating System</option>
+                        <option value="Engineering Mathematics">Engineering Mathematics</option>
+                        <option value="Computer Networks">Computer Networks</option>
+                        <option value="DAA">DAA</option>
+                        <option value="ACD">ACD</option>
+                        <option value="DSA">DSA</option>
+                        <option value="Java">Java Programming</option>
+                        <option value="Python">Python Programming</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Date From</label>
+                    <input type="date" id="filter-from" class="form-input" onchange="loadSubjects()">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Date To</label>
+                    <input type="date" id="filter-to" class="form-input" onchange="loadSubjects()">
+                </div>
+                <div class="form-group" style="align-self:flex-end;">
+                    <button onclick="clearFilters()" class="btn btn-secondary" style="white-space:nowrap;">
+                        ✕ Clear
+                    </button>
+                </div>
+            </div>
+
+            <!-- Summary Stats -->
+            <div class="stats-grid" id="summary-stats">
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon success">📚</div>
+                    </div>
+                    <div class="stat-value" id="stat-subjects">—</div>
+                    <div class="stat-label">Subjects Taught</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon success">🗓</div>
+                    </div>
+                    <div class="stat-value" id="stat-sessions">—</div>
+                    <div class="stat-label">Total Sessions</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon success">👥</div>
+                    </div>
+                    <div class="stat-value" id="stat-students">—</div>
+                    <div class="stat-label">Students Enrolled</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div class="stat-icon success">📈</div>
+                    </div>
+                    <div class="stat-value" id="stat-avg-att">—</div>
+                    <div class="stat-label">Overall Avg Attendance</div>
+                </div>
+            </div>
+
+            <!-- Subject Cards -->
+            <div id="subject-cards-area">
+                <!-- Skeleton placeholders -->
+                <div class="subject-grid" id="subject-grid">
+                    <div class="skeleton skeleton-card"></div>
+                    <div class="skeleton skeleton-card"></div>
+                    <div class="skeleton skeleton-card"></div>
+                </div>
+            </div>
+
+        </div><!-- /container -->
+    </main>
+
+    <!-- Drawer Overlay -->
+    <div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+
+    <!-- Detail Drawer -->
+    <div class="drawer" id="detail-drawer">
+        <div class="drawer-head">
+            <div>
+                <h3 id="drawer-title">Subject Detail</h3>
+                <p id="drawer-subtitle" style="color:var(--text-secondary); font-size:0.85rem; margin-top:0.25rem;"></p>
+            </div>
+            <button class="drawer-close" onclick="closeDrawer()">✕</button>
+        </div>
+        <div class="drawer-body">
+            <!-- Tabs -->
+            <div class="tab-row">
+                <button class="tab-btn active" onclick="switchTab('sessions')" id="tab-sessions">📅 Sessions</button>
+                <button class="tab-btn" onclick="switchTab('students')" id="tab-students">👨‍🎓 Student Summary</button>
+                <button class="tab-btn" onclick="switchTab('chart')" id="tab-chart">📊 Trend</button>
+            </div>
+
+            <!-- Sessions tab -->
+            <div class="tab-panel active" id="panel-sessions">
+                <div id="session-list-container">
+                    <div class="loading-container">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Student summary tab -->
+            <div class="tab-panel" id="panel-students">
+                <div id="student-summary-container">
+                    <div class="loading-container">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart tab -->
+            <div class="tab-panel" id="panel-chart">
+                <div class="chart-container" style="height:280px;">
+                    <canvas id="drawer-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        /* ============================================================
+           GLOBAL STATE
+        ============================================================ */
+        let facultyInfo = null;
+        let allRecords = [];       // all attendance records fetched
+        let allStudents = {};       // { section: [student, ...] }
+        let drawerSubject = null;
+        let drawerSection = null;
+        let drawerChart = null;
+        let activeTab = 'sessions';
+
+        /* ============================================================
+           BOOT
+        ============================================================ */
+        window.addEventListener('DOMContentLoaded', () => {
+            checkAuthentication();
+        });
+
+        function checkAuthentication() {
+            const stored = sessionStorage.getItem('faculty_info');
+            if (!stored) { window.location.href = 'login.html'; return; }
+            facultyInfo = JSON.parse(stored);
+            populateSectionFilter();
+            loadSubjects();
+        }
+
+        function logout() {
+            if (!confirm('Are you sure you want to logout?')) return;
+            sessionStorage.removeItem('faculty_info');
+            const email = localStorage.getItem('faculty_email');
+            if (email) {
+                fetch('/api/faculty/logout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                }).catch(() => { });
+                localStorage.removeItem('faculty_email');
+                localStorage.removeItem('remember_token');
+            }
+            window.location.href = 'login.html';
+        }
+
+        function populateSectionFilter() {
+            const sel = document.getElementById('filter-section');
+            for (let i = 1; i <= 20; i++) {
+                const v = `S-${String(i).padStart(2, '0')}`;
+                const opt = document.createElement('option');
+                opt.value = v; opt.textContent = v;
+                sel.appendChild(opt);
+            }
+        }
+
+        function clearFilters() {
+            document.getElementById('filter-section').value = '';
+            document.getElementById('filter-subject').value = '';
+            document.getElementById('filter-from').value = '';
+            document.getElementById('filter-to').value = '';
+            loadSubjects();
+        }
+
+        /* ============================================================
+           LOAD DATA
+        ============================================================ */
+        async function loadSubjects() {
+            const section = document.getElementById('filter-section').value;
+            const subject = document.getElementById('filter-subject').value;
+            const fromD = document.getElementById('filter-from').value;
+            const toD = document.getElementById('filter-to').value;
+
+            // Show skeletons
+            document.getElementById('subject-grid').innerHTML = `
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+        `;
+
+            try {
+                // Fetch all attendance for this faculty
+                let url = `/api/attendance/by-session?faculty=${encodeURIComponent(facultyInfo.name)}`;
+                if (section) url += `&section=${encodeURIComponent(section)}`;
+                if (subject) url += `&subject=${encodeURIComponent(subject)}`;
+
+                const data = await fetch(url).then(r => r.json());
+                allRecords = data.attendance || [];
+
+                // Date filter client-side
+                if (fromD || toD) {
+                    allRecords = allRecords.filter(r => {
+                        const d = r.date || (r.timestamp ? r.timestamp.split('T')[0] : null);
+                        if (!d) return true;
+                        if (fromD && d < fromD) return false;
+                        if (toD && d > toD) return false;
+                        return true;
+                    });
+                }
+
+                // Fetch enrolled students
+                const stuParams = section ? `?section=${encodeURIComponent(section)}` : '';
+                const stuData = await fetch(`/api/students${stuParams}`).then(r => r.json());
+                const students = stuData.students || [];
+
+                // Build allStudents map by section
+                allStudents = {};
+                students.forEach(s => {
+                    if (!allStudents[s.section]) allStudents[s.section] = [];
+                    allStudents[s.section].push(s);
+                });
+
+                renderSubjectCards(allRecords, students, section);
+
+            } catch (err) {
+                document.getElementById('subject-grid').innerHTML = `
+                <div style="grid-column:1/-1;">
+                    <div class="alert alert-error">Failed to load attendance: ${err.message}</div>
+                </div>`;
+            }
+        }
+
+        /* ============================================================
+           RENDER SUBJECT CARDS
+        ============================================================ */
+        function renderSubjectCards(records, students, filterSection) {
+            // Group records by subject  →  section
+            const subjectMap = {}; // { subject: { section: [records] } }
+
+            records.forEach(r => {
+                const subj = r.subject || 'General';
+                const sec = r.section || (r.student_section) || '—';
+                if (!subjectMap[subj]) subjectMap[subj] = {};
+                if (!subjectMap[subj][sec]) subjectMap[subj][sec] = [];
+                subjectMap[subj][sec].push(r);
+            });
+
+            const subjects = Object.keys(subjectMap);
+
+            // Summary stats
+            document.getElementById('stat-subjects').textContent = subjects.length;
+            const totalSessions = records.length > 0
+                ? Object.values(subjectMap).reduce((a, secMap) =>
+                    a + Object.values(secMap).reduce((b, recs) => {
+                        const dates = new Set(recs.map(r => r.date || r.timestamp?.split('T')[0]));
+                        return b + dates.size;
+                    }, 0), 0)
+                : 0;
+            document.getElementById('stat-sessions').textContent = totalSessions;
+            document.getElementById('stat-students').textContent = students.length;
+
+            // Avg attendance across all subjects
+            if (records.length > 0 && students.length > 0) {
+                const uniquePresent = new Set(records.map(r => r.student_id)).size;
+                document.getElementById('stat-avg-att').textContent =
+                    Math.round(uniquePresent / students.length * 100) + '%';
+            } else {
+                document.getElementById('stat-avg-att').textContent = '0%';
+            }
+
+            if (subjects.length === 0) {
+                document.getElementById('subject-grid').innerHTML = `
+                <div style="grid-column:1/-1;">
+                    <div class="empty-state">
+                        <div class="emoji">📭</div>
+                        <h3>No attendance records found</h3>
+                        <p style="margin-top:0.5rem;">Go to <a href="scan-attendance.html" style="color:var(--primary);">Scan page</a> to start recording attendance.</p>
+                    </div>
+                </div>`;
+                return;
+            }
+
+            const SUBJECT_ICONS = {
+                'Operating System': '💻', 'Engineering Mathematics': '📐',
+                'Computer Networks': '🌐', 'DAA': '🔍', 'ACD': '🖥️',
+                'DSA': '🗂️', 'Java': '☕', 'Python': '🐍', 'General': '📋'
+            };
+
+            const cards = subjects.sort().map((subj, idx) => {
+                const secMap = subjectMap[subj];
+                const sections = Object.keys(secMap).sort();
+                const allSubjRecs = sections.flatMap(s => secMap[s]);
+                const uniqueDates = new Set(allSubjRecs.map(r => r.date || r.timestamp?.split('T')[0]).filter(Boolean));
+                const numSessions = uniqueDates.size;
+                const icon = SUBJECT_ICONS[subj] || '📚';
+
+                // Avg attendance % per day
+                let avgPct = 0;
+                if (numSessions > 0) {
+                    const dateGroups = {};
+                    allSubjRecs.forEach(r => {
+                        const d = r.date || r.timestamp?.split('T')[0] || 'x';
+                        if (!dateGroups[d]) dateGroups[d] = new Set();
+                        dateGroups[d].add(r.student_id);
+                    });
+                    const totStudForSubj = students.filter(s =>
+                        filterSection ? s.section === filterSection : true
+                    ).length || students.length || 1;
+                    const dailyPcts = Object.values(dateGroups).map(st => st.size / totStudForSubj * 100);
+                    avgPct = Math.round(dailyPcts.reduce((a, b) => a + b, 0) / dailyPcts.length);
+                }
+
+                const pctColor = avgPct >= 75 ? 'var(--success)' :
+                    avgPct >= 50 ? 'var(--warning)' : 'var(--error)';
+                const conicGrad = `conic-gradient(${pctColor} ${avgPct * 3.6}deg, var(--border) 0deg)`;
+                const sectionBadges = sections.map(s =>
+                    `<span class="badge badge-info" style="font-size:0.7rem;">${s}</span>`
+                ).join('');
+
+                return `
+            <div class="subject-card" style="animation-delay:${idx * 0.06}s">
+                <div class="subject-card-header">
+                    <div class="subject-icon">${icon}</div>
+                    <div class="subject-name">${subj}</div>
+                    <span class="badge ${avgPct >= 75 ? 'badge-success' : avgPct >= 50 ? 'badge-warning' : 'badge-error'}">
+                        ${avgPct}%
+                    </span>
+                </div>
+                <div class="subject-card-body">
+                    <div class="subject-meta">${sectionBadges}</div>
+                    <div class="att-ring-wrap">
+                        <div class="att-ring" style="background:${conicGrad};">
+                            <div class="att-ring-inner">
+                                <span class="att-ring-pct" style="color:${pctColor}">${avgPct}%</span>
+                                <span class="att-ring-lbl">avg</span>
+                            </div>
+                        </div>
+                        <div class="att-stats">
+                            <div class="att-stat-row">Sessions: <span class="att-stat-val">${numSessions}</span></div>
+                            <div class="att-stat-row">Students marked: <span class="att-stat-val">${new Set(allSubjRecs.map(r => r.student_id)).size}</span></div>
+                            <div class="att-stat-row">Sections: <span class="att-stat-val">${sections.length}</span></div>
+                        </div>
+                    </div>
+                    <button class="view-btn"
+                        onclick="openDrawer('${subj.replace(/'/g, "\\'")}', '${(filterSection || '').replace(/'/g, "\\'")}')">
+                        View Details →
+                    </button>
+                </div>
+            </div>`;
+            });
+
+            document.getElementById('subject-grid').innerHTML = cards.join('');
+        }
+
+        /* ============================================================
+           DRAWER
+        ============================================================ */
+        function openDrawer(subject, section) {
+            drawerSubject = subject;
+            drawerSection = section;
+
+            document.getElementById('drawer-title').textContent = subject;
+            document.getElementById('drawer-subtitle').textContent =
+                section ? `Section ${section}` : 'All Sections';
+
+            document.getElementById('drawer-overlay').classList.add('open');
+            document.getElementById('detail-drawer').classList.add('open');
+            document.body.style.overflow = 'hidden';
+
+            switchTab('sessions'); // reset to first tab and load
+        }
+
+        function closeDrawer() {
+            document.getElementById('drawer-overlay').classList.remove('open');
+            document.getElementById('detail-drawer').classList.remove('open');
+            document.body.style.overflow = '';
+            if (drawerChart) { drawerChart.destroy(); drawerChart = null; }
+        }
+
+        function switchTab(tab) {
+            activeTab = tab;
+            ['sessions', 'students', 'chart'].forEach(t => {
+                document.getElementById(`tab-${t}`)?.classList.toggle('active', t === tab);
+                document.getElementById(`panel-${t}`)?.classList.toggle('active', t === tab);
+            });
+            if (tab === 'sessions') renderDrawerSessions();
+            if (tab === 'students') renderDrawerStudents();
+            if (tab === 'chart') renderDrawerChart();
+        }
+
+        function getDrawerRecords() {
+            return allRecords.filter(r => {
+                const subj = r.subject || 'General';
+                if (subj !== drawerSubject) return false;
+                if (drawerSection && r.section !== drawerSection) return false;
+                return true;
+            });
+        }
+
+        /* ----- Sessions Tab ----- */
+        function renderDrawerSessions() {
+            const container = document.getElementById('session-list-container');
+            const records = getDrawerRecords();
+
+            if (records.length === 0) {
+                container.innerHTML = `<div class="empty-state"><div class="emoji">📭</div><p>No records for this subject.</p></div>`;
+                return;
+            }
+
+            // Group by date
+            const byDate = {};
+            records.forEach(r => {
+                const d = r.date || r.timestamp?.split('T')[0] || 'Unknown';
+                if (!byDate[d]) byDate[d] = [];
+                byDate[d].push(r);
+            });
+
+            const html = Object.entries(byDate)
+                .sort(([a], [b]) => b.localeCompare(a))
+                .map(([date, recs]) => {
+                    const dateLabel = (() => {
+                        try { return new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); }
+                        catch { return date; }
+                    })();
+                    const rows = recs.map(r => `
+                    <div class="student-att-row">
+                        <div class="stu-init">${(r.student_name || '?').charAt(0).toUpperCase()}</div>
+                        <div class="stu-info">
+                            <div class="stu-name">${r.student_name || '—'}</div>
+                            <div class="stu-reg">${r.register_number || '—'}</div>
+                        </div>
+                        <div style="font-size:0.78rem; color:var(--text-muted); text-align:right;">
+                            ${r.class_time || r.timestamp ? new Date(r.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                        </div>
+                        <span class="badge badge-success" style="font-size:0.7rem; margin-left:0.5rem;">Present</span>
+                    </div>`).join('');
+
+                    return `
+                <div class="session-item">
+                    <div class="session-item-head">
+                        <div class="session-head-left">
+                            <span style="font-weight:700;">📅 ${dateLabel}</span>
+                            <span class="badge badge-info">${recs.length} student${recs.length !== 1 ? 's' : ''}</span>
+                        </div>
+                        <span class="badge badge-success">✓ Recorded</span>
+                    </div>
+                    <div class="session-item-body">${rows}</div>
+                </div>`;
+                }).join('');
+
+            container.innerHTML = `<div class="session-list">${html}</div>`;
+        }
+
+        /* ----- Students Tab ----- */
+        function renderDrawerStudents() {
+            const container = document.getElementById('student-summary-container');
+            const records = getDrawerRecords();
+
+            // Get students for this section (from allStudents)
+            const sec = drawerSection;
+            let students = [];
+            if (sec && allStudents[sec]) {
+                students = allStudents[sec];
+            } else {
+                // collect from all sections
+                students = Object.values(allStudents).flat();
+            }
+
+            if (students.length === 0) {
+                container.innerHTML = `<div class="empty-state"><div class="emoji">👥</div><p>No student data available.</p></div>`;
+                return;
+            }
+
+            // Count unique class dates
+            const uniqueDates = new Set(records.map(r => r.date || r.timestamp?.split('T')[0]).filter(Boolean));
+            const numClasses = uniqueDates.size;
+
+            // Per-student attendance count
+            const presentMap = {};
+            records.forEach(r => {
+                if (!presentMap[r.student_id]) presentMap[r.student_id] = new Set();
+                const d = r.date || r.timestamp?.split('T')[0];
+                if (d) presentMap[r.student_id].add(d);
+            });
+
+            const rows = students.map(s => {
+                const attended = presentMap[s.id] ? presentMap[s.id].size : 0;
+                const pct = numClasses > 0 ? Math.round(attended / numClasses * 100) : 0;
+                const barColor = pct >= 75 ? '#22c55e' : pct >= 50 ? '#f59e0b' : '#ef4444';
+                const badgeCls = pct >= 75 ? 'badge-success' : pct >= 50 ? 'badge-warning' : 'badge-error';
+                return { s, attended, pct, barColor, badgeCls };
+            }).sort((a, b) => b.pct - a.pct);
+
+            const tableRows = rows.map(({ s, attended, pct, barColor, badgeCls }) => `
+            <tr>
+                <td>
+                    <div style="display:flex; align-items:center; gap:0.6rem;">
+                        <div class="stu-init">${s.name.charAt(0).toUpperCase()}</div>
+                        <div>
+                            <div style="font-weight:600; font-size:0.85rem;">${s.name}</div>
+                            <div style="font-size:0.72rem; color:var(--text-muted);">${s.register_number}</div>
+                        </div>
+                    </div>
+                </td>
+                <td style="font-size:0.82rem;">${attended}/${numClasses}</td>
+                <td style="min-width:130px;">
+                    <div class="pct-bar-row">
+                        <div class="pct-bar-bg"><div class="pct-bar-fill" style="width:${pct}%; background:${barColor};"></div></div>
+                        <span class="pct-bar-lbl" style="color:${barColor};">${pct}%</span>
+                    </div>
+                </td>
+                <td><span class="badge ${badgeCls}" style="font-size:0.7rem;">${pct >= 75 ? '✓ Good' : pct >= 50 ? '⚠ Low' : '✗ Poor'}</span></td>
+            </tr>`).join('');
+
+            container.innerHTML = `
+            <p style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:1rem;">
+                ${numClasses} class session${numClasses !== 1 ? 's' : ''} conducted • ${students.length} students enrolled
+            </p>
+            <div style="overflow-x:auto;">
+                <table class="table stu-summary-table">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Attended</th>
+                            <th>Percentage</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>${tableRows}</tbody>
+                </table>
+            </div>`;
+        }
+
+        /* ----- Chart Tab ----- */
+        function renderDrawerChart() {
+            const records = getDrawerRecords();
+            if (drawerChart) { drawerChart.destroy(); drawerChart = null; }
+
+            // Group by date for trend
+            const byDate = {};
+            records.forEach(r => {
+                const d = r.date || r.timestamp?.split('T')[0] || 'Unknown';
+                if (!byDate[d]) byDate[d] = new Set();
+                byDate[d].add(r.student_id);
+            });
+
+            const sorted = Object.entries(byDate).sort(([a], [b]) => a.localeCompare(b));
+            const labels = sorted.map(([d]) => {
+                try { return new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }); }
+                catch { return d; }
+            });
+            const values = sorted.map(([, st]) => st.size);
+
+            const ctx = document.getElementById('drawer-chart').getContext('2d');
+            drawerChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Students Present',
+                        data: values,
+                        backgroundColor: 'rgba(34,197,94,0.7)',
+                        borderColor: '#22c55e',
+                        borderWidth: 2,
+                        borderRadius: 6,
+                        barThickness: 32
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1e2330',
+                            titleColor: '#fff',
+                            bodyColor: '#94a3b8',
+                            borderColor: '#374151',
+                            borderWidth: 1,
+                            padding: 12
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#374151' },
+                            ticks: { color: '#94a3b8', precision: 0 }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#94a3b8' }
+                        }
+                    }
+                }
+            });
+        }
+
+        /* ============================================================
+           EXPORT CSV
+        ============================================================ */
+        function exportReport() {
+            if (allRecords.length === 0) {
+                UI.showAlert('No data to export. Load attendance data first.', 'error');
+                return;
+            }
+
+            const rows = [['Student Name', 'Register Number', 'Subject', 'Section', 'Date', 'Time', 'Recorded By']];
+            allRecords.forEach(r => {
+                rows.push([
+                    `"${r.student_name || ''}"`,
+                    r.register_number || '',
+                    `"${r.subject || ''}"`,
+                    r.section || '',
+                    r.date || (r.timestamp ? r.timestamp.split('T')[0] : ''),
+                    r.timestamp ? new Date(r.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '',
+                    `"${r.recorded_by || ''}"`,
+                ]);
+            });
+
+            const csv = rows.map(r => r.join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `attendance_${facultyInfo.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            UI.showAlert('CSV exported successfully!', 'success');
+        }
+    </script>
+</body>
+
+</html>

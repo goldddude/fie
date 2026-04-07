@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scan Attendance - TapSyncPro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles-pro.css">
+    <style>
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.1);
+                opacity: 0.8;
+            }
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .scan-entry {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            animation: slideIn 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .scan-entry:last-child {
+            border-bottom: none;
+        }
+
+        .scan-entry.success {
+            background: rgba(34, 197, 94, 0.07);
+        }
+
+        .scan-entry.error {
+            background: rgba(239, 68, 68, 0.07);
+        }
+
+        .delete-scan-btn {
+            padding: 0.3rem 0.65rem;
+            font-size: 0.75rem;
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--error, #ef4444);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.2s;
+        }
+
+        .delete-scan-btn:hover {
+            background: rgba(239, 68, 68, 0.3);
+        }
+
+        .close-session-bar {
+            position: sticky;
+            bottom: 1rem;
+            text-align: center;
+            padding: 1rem 0;
+            pointer-events: none;
+        }
+
+        .close-session-bar button {
+            pointer-events: all;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <a href="index.html" class="logo">
+                    <div class="logo-icon">⚡</div>
+                    <span>TapSyncPro</span>
+                </a>
+                <nav class="nav">
+                    <a href="index.html" class="nav-link">Overview</a>
+                    <a href="dashboard.html" class="nav-link">Statistics</a>
+                    <a href="attendance-manager.html" class="nav-link">Manage</a>
+                    <a href="students.html" class="nav-link">Students</a>
+                    <a href="scan-attendance.html" class="nav-link active">Scan</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <div class="flex-between mb-3">
+                <h1>📱 Scan Attendance</h1>
+                <button onclick="logout()" class="btn btn-secondary">🚪 Logout</button>
+            </div>
+
+            <!-- Faculty Info Display -->
+            <div class="card mb-3" id="faculty-info-card">
+                <div style="display:flex; align-items:center; gap:1rem;">
+                    <div
+                        style="width:48px;height:48px;border-radius:50%;background:var(--primary);color:#000;display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:700;">
+                        <span id="faculty-initial">?</span>
+                    </div>
+                    <div>
+                        <strong id="faculty-name-display">Loading...</strong><br>
+                        <span style="color:var(--text-secondary);font-size:0.85rem;" id="faculty-email-display"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Session Configuration -->
+            <div class="card mb-3" id="session-config">
+                <div class="card-header">
+                    <h3 class="card-title">Session Configuration</h3>
+                    <p class="card-subtitle">Configure attendance session details before scanning</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Faculty Name *</label>
+                    <input type="text" id="faculty-name-input" class="form-input" placeholder="Enter faculty name"
+                        required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Section *</label>
+                    <select id="section-select" class="form-input">
+                        <option value="">— Select Section —</option>
+                        <option value="S-01">S-01</option>
+                        <option value="S-02">S-02</option>
+                        <option value="S-03">S-03</option>
+                        <option value="S-04">S-04</option>
+                        <option value="S-05">S-05</option>
+                        <option value="S-06">S-06</option>
+                        <option value="S-07">S-07</option>
+                        <option value="S-08">S-08</option>
+                        <option value="S-09">S-09</option>
+                        <option value="S-10">S-10</option>
+                        <option value="S-11">S-11</option>
+                        <option value="S-12">S-12</option>
+                        <option value="S-13">S-13</option>
+                        <option value="S-14">S-14</option>
+                        <option value="S-15">S-15</option>
+                        <option value="S-16">S-16</option>
+                        <option value="S-17">S-17</option>
+                        <option value="S-18">S-18</option>
+                        <option value="S-19">S-19</option>
+                        <option value="S-20">S-20</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Subject *</label>
+                    <select id="subject-select" class="form-input">
+                        <option value="">— Select Subject —</option>
+                        <option value="Operating System">Operating System</option>
+                        <option value="Engineering Mathematics">Engineering Mathematics</option>
+                        <option value="Computer Networks">Computer Networks</option>
+                        <option value="DAA">Design and Analysis of Algorithms (DAA)</option>
+                        <option value="ACD">Advanced Computer Design (ACD)</option>
+                        <option value="DSA">Data Structures and Algorithms (DSA)</option>
+                        <option value="Java">Java Programming</option>
+                        <option value="Python">Python Programming</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Date *</label>
+                    <input type="date" id="date-select" class="form-input" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Class Time *</label>
+                    <select id="time-select" class="form-input">
+                        <option value="">— Select Class Time —</option>
+                        <option value="09:00-09:50">09:00 AM – 09:50 AM</option>
+                        <option value="10:00-10:50">10:00 AM – 10:50 AM</option>
+                        <option value="11:00-11:50">11:00 AM – 11:50 AM</option>
+                        <option value="12:00-12:50">12:00 PM – 12:50 PM</option>
+                        <option value="13:00-13:50">01:00 PM – 01:50 PM</option>
+                        <option value="14:00-14:50">02:00 PM – 02:50 PM</option>
+                        <option value="15:00-15:50">03:00 PM – 03:50 PM</option>
+                        <option value="16:00-16:50">04:00 PM – 04:50 PM</option>
+                    </select>
+                </div>
+
+                <button onclick="startScanning()" class="btn btn-primary" style="width:100%; margin-top:0.5rem;">
+                    🚀 Start Scanning
+                </button>
+            </div>
+
+            <!-- NFC Scan Area (hidden until started) -->
+            <div id="scan-section" class="hidden">
+
+                <!-- Session Info Banner -->
+                <div class="card mb-3"
+                    style="background:linear-gradient(135deg,rgba(34,197,94,0.1) 0%,var(--bg-card) 100%); border:2px solid var(--primary);">
+                    <div
+                        style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:1rem; align-items:center;">
+                        <div><strong>Faculty:</strong><br><span id="current-faculty" class="badge badge-success"
+                                style="margin-top:0.25rem;">-</span></div>
+                        <div><strong>Section:</strong><br><span id="current-section" class="badge badge-success"
+                                style="margin-top:0.25rem;">-</span></div>
+                        <div><strong>Subject:</strong><br><span id="current-subject" class="badge badge-info"
+                                style="margin-top:0.25rem;">-</span></div>
+                        <div><strong>Date:</strong><br><span id="current-date" class="badge badge-info"
+                                style="margin-top:0.25rem;">-</span></div>
+                        <div><strong>Time:</strong><br><span id="current-time" class="badge badge-info"
+                                style="margin-top:0.25rem;">-</span></div>
+                    </div>
+                </div>
+
+                <!-- Scan Pulse -->
+                <div class="card mb-3"
+                    style="background:linear-gradient(135deg,rgba(34,197,94,0.1) 0%,var(--bg-card) 100%); border:2px solid var(--primary);">
+                    <div style="text-align:center; padding:2.5rem 1rem;">
+                        <div style="font-size:4rem; margin-bottom:1rem; animation:pulse 2s ease-in-out infinite;">📱
+                        </div>
+                        <h2 style="color:var(--primary); margin-bottom:0.5rem;">Ready to Scan</h2>
+                        <div id="scan-status" style="font-size:1.1rem; color:var(--text-secondary);">
+                            Tap an NFC card near your device
+                        </div>
+                        <div id="scan-count-display"
+                            style="margin-top:1rem; font-size:0.9rem; color:var(--text-secondary);">
+                            <strong id="scan-counter">0</strong> students recorded this session
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex gap-2 mb-3" style="flex-wrap:wrap;">
+                    <button onclick="stopScanning()" class="btn btn-secondary" style="flex:1;">
+                        ⏸️ Stop Scanning
+                    </button>
+                    <button onclick="clearLog()" class="btn btn-secondary" style="flex:1;">
+                        🗑️ Clear Log
+                    </button>
+                    <button onclick="closeSession()" class="btn btn-danger"
+                        style="flex:2; background:var(--primary); color:#000; border:none;">
+                        ✅ Close Attendance
+                    </button>
+                </div>
+
+                <!-- Scan Log -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Scan Log</h3>
+                        <p class="card-subtitle">Tap NFC cards to record attendance. You can delete accidental scans.
+                        </p>
+                    </div>
+                    <div id="scan-log">
+                        <p class="text-secondary text-center" style="padding:2rem;">
+                            No scans yet. Start tapping ID cards to record attendance.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/app.js"></script>
+    <script src="js/nfc-handler.js"></script>
+    <script>
+        let nfcHandler = null;
+        let facultyInfo = null;
+        let currentFacultyName = '';
+        let currentSection = '';
+        let currentSubject = '';
+        let currentDate = '';
+        let currentTime = '';
+        let scanLog = [];   // { success, student, registerNumber, attendanceId, message, timestamp }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            checkAuthentication();
+        });
+
+        function checkAuthentication() {
+            const storedInfo = sessionStorage.getItem('faculty_info');
+            if (!storedInfo) {
+                window.location.href = 'login.html';
+                return;
+            }
+            facultyInfo = JSON.parse(storedInfo);
+            document.getElementById('faculty-name-display').textContent = facultyInfo.name;
+            document.getElementById('faculty-email-display').textContent = facultyInfo.email;
+            document.getElementById('faculty-initial').textContent = facultyInfo.name.charAt(0).toUpperCase();
+
+            // Pre-fill faculty name field
+            document.getElementById('faculty-name-input').value = facultyInfo.name;
+
+            // Set today's date
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('date-select').value = today;
+        }
+
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                sessionStorage.removeItem('faculty_info');
+                const email = localStorage.getItem('faculty_email');
+                if (email) {
+                    fetch('/api/faculty/logout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email })
+                    }).catch(() => { });
+                    localStorage.removeItem('faculty_email');
+                    localStorage.removeItem('remember_token');
+                }
+                window.location.href = 'login.html';
+            }
+        }
+
+        function startScanning() {
+            currentFacultyName = document.getElementById('faculty-name-input').value.trim();
+            currentSection = document.getElementById('section-select').value;
+            currentSubject = document.getElementById('subject-select').value;
+            currentDate = document.getElementById('date-select').value;
+            currentTime = document.getElementById('time-select').value;
+
+            if (!currentFacultyName) { UI.showAlert('Please enter faculty name', 'error'); return; }
+            if (!currentSection) { UI.showAlert('Please select a section', 'error'); return; }
+            if (!currentSubject) { UI.showAlert('Please select a subject', 'error'); return; }
+            if (!currentDate) { UI.showAlert('Please select a date', 'error'); return; }
+            if (!currentTime) { UI.showAlert('Please select a class time', 'error'); return; }
+
+            if (!('NDEFReader' in window)) {
+                UI.showAlert('NFC not supported. Use Chrome on Android with NFC enabled.', 'error');
+                return;
+            }
+
+            nfcHandler = new NFCHandler();
+
+            // Update session display
+            document.getElementById('current-faculty').textContent = currentFacultyName;
+            document.getElementById('current-section').textContent = currentSection;
+            document.getElementById('current-subject').textContent = currentSubject;
+            document.getElementById('current-date').textContent = new Date(currentDate + 'T00:00:00').toLocaleDateString('en-IN');
+            document.getElementById('current-time').textContent = currentTime;
+
+            document.getElementById('session-config').classList.add('hidden');
+            document.getElementById('scan-section').classList.remove('hidden');
+
+            startNFCScan();
+        }
+
+        async function startNFCScan() {
+            updateStatus('🔍 Scanning… Tap a student ID card');
+            try {
+                await nfcHandler.readTag(
+                    async (tagData) => {
+                        updateStatus('⚡ Tag detected! Processing…');
+                        try {
+                            const [startT, endT] = currentTime.split('-');
+                            const result = await APIClient.recordAttendance({
+                                nfc_tag_id: tagData.tagId,
+                                faculty_name: currentFacultyName,
+                                section: currentSection,
+                                subject: currentSubject,
+                                date: currentDate,
+                                start_time: startT || currentTime,
+                                end_time: endT || ''
+                            });
+
+                            const rec = result.attendance;
+                            addToLog({
+                                success: true,
+                                attendanceId: rec.id,
+                                student: rec.student_name,
+                                registerNumber: rec.register_number,
+                                timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                                message: 'Attendance recorded'
+                            });
+
+                            updateStatus('✅ Success! Ready for next scan…');
+                        } catch (err) {
+                            addToLog({
+                                success: false,
+                                attendanceId: null,
+                                student: null,
+                                message: err.message,
+                                timestamp: new Date().toLocaleTimeString()
+                            });
+                            updateStatus('❌ Error. Ready for next scan…');
+                        }
+                    },
+                    (err) => {
+                        updateStatus('❌ NFC Error: ' + err.message);
+                        UI.showAlert('NFC Error: ' + err.message, 'error');
+                    }
+                );
+            } catch (err) {
+                updateStatus('❌ Failed to start scanning');
+                UI.showAlert('Failed to start NFC scan: ' + err.message, 'error');
+            }
+        }
+
+        function stopScanning() {
+            if (nfcHandler) nfcHandler.stopScan();
+            document.getElementById('session-config').classList.remove('hidden');
+            document.getElementById('scan-section').classList.add('hidden');
+            scanLog = [];
+            updateStatus('Ready to scan…');
+        }
+
+        async function closeSession() {
+            const successCount = scanLog.filter(e => e.success).length;
+            if (successCount === 0) {
+                UI.showAlert('No attendance recorded yet. Scan students first.', 'error');
+                return;
+            }
+
+            if (!confirm(`Close attendance for ${currentSubject} — ${currentSection}?\n\n${successCount} students will be marked as Present. This cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/attendance/close-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        faculty_name: currentFacultyName,
+                        subject: currentSubject,
+                        date: currentDate
+                    })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    UI.showAlert(`✅ Attendance closed! ${data.closed_count} records saved.`, 'success');
+                    if (nfcHandler) nfcHandler.stopScan();
+                    setTimeout(() => {
+                        document.getElementById('session-config').classList.remove('hidden');
+                        document.getElementById('scan-section').classList.add('hidden');
+                        scanLog = [];
+                    }, 2000);
+                } else {
+                    UI.showAlert(data.error || 'Failed to close session', 'error');
+                }
+            } catch (err) {
+                UI.showAlert('Network error: ' + err.message, 'error');
+            }
+        }
+
+        async function deleteAttendanceEntry(attendanceId, entryIndex) {
+            if (!confirm('Delete this attendance record? The student can scan again.')) return;
+
+            try {
+                const res = await fetch(`/api/attendance/${attendanceId}`, { method: 'DELETE' });
+                const data = await res.json();
+
+                if (res.ok) {
+                    // Remove from log
+                    scanLog.splice(entryIndex, 1);
+                    renderLog();
+                    updateScanCounter();
+                    UI.showAlert('Record deleted. Student can scan again.', 'success');
+                } else {
+                    UI.showAlert(data.error || 'Failed to delete record', 'error');
+                }
+            } catch (err) {
+                UI.showAlert('Network error: ' + err.message, 'error');
+            }
+        }
+
+        function updateStatus(msg) {
+            document.getElementById('scan-status').textContent = msg;
+        }
+
+        function updateScanCounter() {
+            const count = scanLog.filter(e => e.success).length;
+            document.getElementById('scan-counter').textContent = count;
+        }
+
+        function addToLog(entry) {
+            scanLog.unshift(entry);
+            renderLog();
+            updateScanCounter();
+        }
+
+        function renderLog() {
+            const logDiv = document.getElementById('scan-log');
+
+            if (scanLog.length === 0) {
+                logDiv.innerHTML = `
+                    <p class="text-secondary text-center" style="padding:2rem;">
+                        No scans yet. Start tapping ID cards to record attendance.
+                    </p>
+                `;
+                return;
+            }
+
+            logDiv.innerHTML = scanLog.map((entry, idx) => `
+                <div class="scan-entry ${entry.success ? 'success' : 'error'}">
+                    <div>
+                        ${entry.success ? `
+                            <strong style="color:var(--success, #22c55e);">✅ ${entry.student}</strong><br>
+                            <span style="color:var(--text-secondary); font-size:0.85rem;">${entry.registerNumber}</span>
+                        ` : `
+                            <strong style="color:var(--error, #ef4444);">❌ Failed</strong><br>
+                            <span style="color:var(--text-secondary); font-size:0.85rem;">${entry.message}</span>
+                        `}
+                        <br><small style="color:var(--text-muted); font-size:0.75rem;">⏰ ${entry.timestamp}</small>
+                    </div>
+                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:0.4rem;">
+                        <span class="badge ${entry.success ? 'badge-success' : 'badge-error'}">
+                            ${entry.success ? 'Recorded' : 'Error'}
+                        </span>
+                        ${entry.success && entry.attendanceId ? `
+                            <button class="delete-scan-btn" onclick="deleteAttendanceEntry(${entry.attendanceId}, ${idx})">
+                                🗑 Delete
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function clearLog() {
+            if (confirm('Clear the scan log display? (Records in database stay unless you delete them)')) {
+                scanLog = [];
+                renderLog();
+                updateScanCounter();
+            }
+        }
+    </script>
+</body>
+
+</html>
