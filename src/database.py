@@ -35,7 +35,7 @@ def _build_uri():
     if user and pwd and host:
         enc_user = urllib.parse.quote_plus(user)
         enc_pass = urllib.parse.quote_plus(pwd)   # safely encodes @, #, % etc.
-        db_name  = os.environ.get('MONGO_DB_NAME', 'tapsyncpro')
+        db_name  = os.environ.get('MONGO_DB_NAME', 'Tapsyncpro')
         return f"mongodb+srv://{enc_user}:{enc_pass}@{host}/{db_name}?appName={app}"
 
     raise RuntimeError(
@@ -58,7 +58,7 @@ def get_db():
         return _db
 
     mongo_uri = _build_uri()
-    db_name   = os.environ.get('MONGO_DB_NAME', 'tapsyncpro')
+    db_name   = os.environ.get('MONGO_DB_NAME', 'Tapsyncpro')
 
     _client = MongoClient(mongo_uri, serverSelectionTimeoutMS=8000)
     _db     = _client[db_name]
