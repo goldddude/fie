@@ -2,7 +2,7 @@
 MongoDB Attendance Service
 All attendance CRUD operations using PyMongo
 """
-from datetime import datetime, timedelta
+from datetime import datetime
 from collections import defaultdict
 from bson import ObjectId
 from src.database import get_db, to_str_id, to_object_id
@@ -72,17 +72,20 @@ class AttendanceService:
             if not student:
                 return False, "Student not found"
 
-            # Prevent duplicates within 1 hour
-            one_hour_ago = datetime.utcnow() - timedelta(hours=1)
-            recent = db.attendance.find_one({
-                'student_id': str(student_id),
-                'timestamp': {'$gte': one_hour_ago},
-            })
-            if recent:
-                ts = recent.get('timestamp', datetime.utcnow())
-                return False, f"Attendance already recorded for {student.get('name')} at {ts.strftime('%H:%M:%S')}"
-
+            # Prevent duplicate within the SAME session only
+            # A session is uniquely identified by: student + date + section + subject + class_time
             today_str = date or datetime.utcnow().strftime('%Y-%m-%d')
+            session_query = {
+                'student_id': str(student_id),
+                'date': today_str,
+                'section': section or student.get('section', ''),
+                'subject': subject or '',
+                'class_time': class_time or '',
+            }
+            existing = db.attendance.find_one(session_query)
+            if existing:
+                ts = existing.get('timestamp', datetime.utcnow())
+                return False, f"Already recorded for {student.get('name')} in this session (recorded at {ts.strftime('%H:%M:%S')})"
 
             doc = {
                 'student_id': str(student_id),
