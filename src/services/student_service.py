@@ -152,3 +152,25 @@ class StudentService:
             return True, "Student deleted successfully"
         except Exception as e:
             return False, f"Error deleting student: {str(e)}"
+
+    @staticmethod
+    def bulk_delete_students(student_ids):
+        """Delete multiple students and their attendance records by ID list."""
+        deleted = 0
+        failed = []
+        try:
+            db = get_db()
+            for sid in student_ids:
+                oid = to_object_id(sid)
+                if oid is None:
+                    failed.append(sid)
+                    continue
+                result = db.students.delete_one({'_id': oid})
+                if result.deleted_count:
+                    db.attendance.delete_many({'student_id': sid})
+                    deleted += 1
+                else:
+                    failed.append(sid)
+            return deleted, failed
+        except Exception as e:
+            return deleted, failed

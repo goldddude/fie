@@ -88,6 +88,13 @@ class APIClient {
         });
     }
 
+    static async deleteStudentsBulk(ids) {
+        return this.request('/api/students/bulk-delete', {
+            method: 'POST',
+            body: JSON.stringify({ ids })
+        });
+    }
+
     // NFC APIs
     static async registerNFC(studentId, nfcTagId) {
         return this.request('/api/nfc/register', {

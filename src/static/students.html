@@ -5,8 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Students - TapSyncPro</title>
+    <meta name="description" content="Manage student profiles, NFC registrations and bulk-delete students.">
     <link rel="stylesheet" href="css/styles-pro.css">
     <style>
+        /* ── Section tabs ─────────────────────────────────────── */
         .section-tabs {
             display: flex;
             gap: 0.5rem;
@@ -27,29 +29,143 @@
             white-space: nowrap;
         }
 
-        .section-tab:hover {
-            color: var(--text-primary);
-        }
+        .section-tab:hover { color: var(--text-primary); }
 
-        .section-tab.active {
-            color: var(--primary);
-        }
+        .section-tab.active { color: var(--primary); }
 
         .section-tab.active::after {
             content: '';
             position: absolute;
             bottom: -2px;
-            left: 0;
-            right: 0;
+            left: 0; right: 0;
             height: 2px;
             background: var(--primary);
         }
 
+        /* ── Action button in table ───────────────────────────── */
         .action-btn {
             padding: 0.375rem 0.75rem;
             font-size: 0.75rem;
             margin-right: 0.25rem;
         }
+
+        /* ── Checkbox column ──────────────────────────────────── */
+        .cb-cell {
+            width: 40px;
+            text-align: center;
+        }
+
+        .row-cb {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: var(--primary);
+        }
+
+        /* ── Select-mode toggle in header ─────────────────────── */
+        #select-mode-btn {
+            transition: var(--transition);
+        }
+
+        #select-mode-btn.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+
+        /* ── Floating bulk-action bar ─────────────────────────── */
+        #bulk-bar {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(120%);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            padding: 0.85rem 1.5rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,.45);
+            backdrop-filter: blur(12px);
+            z-index: 1000;
+            transition: transform 0.35s cubic-bezier(.34,1.56,.64,1);
+            white-space: nowrap;
+        }
+
+        #bulk-bar.visible {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        #bulk-bar .sel-count {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            min-width: 80px;
+        }
+
+        #bulk-bar .sel-count span {
+            color: var(--primary);
+        }
+
+        /* ── Confirmation Modal ──────────────────────────────── */
+        #confirm-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.65);
+            backdrop-filter: blur(4px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #confirm-modal-overlay.open {
+            display: flex;
+        }
+
+        #confirm-modal {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            padding: 2rem 2.25rem;
+            max-width: 420px;
+            width: 90%;
+            box-shadow: 0 24px 64px rgba(0,0,0,.5);
+            animation: modalIn .25s ease;
+        }
+
+        @keyframes modalIn {
+            from { opacity:0; transform: scale(.9); }
+            to   { opacity:1; transform: scale(1);  }
+        }
+
+        #confirm-modal h3 {
+            font-size: 1.15rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        #confirm-modal p {
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+            line-height: 1.55;
+        }
+
+        #confirm-modal .modal-actions {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: flex-end;
+        }
+
+        /* Row highlight when selected */
+        tr.selected-row {
+            background: rgba(34, 197, 94, 0.06) !important;
+        }
+
+        tr.selected-row td { border-left: 2px solid var(--primary); }
+        tr.selected-row td:first-child { border-left: none; }
     </style>
 </head>
 
@@ -77,8 +193,9 @@
             <div class="flex-between" style="margin-bottom: 2rem;">
                 <div>
                     <h1>Student Management</h1>
-                    <p style="color: var(--text-secondary); margin-top: 0.5rem;">Manage student profiles and NFC
-                        registrations</p>
+                    <p style="color: var(--text-secondary); margin-top: 0.5rem;">
+                        Manage student profiles and NFC registrations
+                    </p>
                 </div>
                 <div class="flex gap-2">
                     <a href="add-student.html" class="btn btn-primary">➕ Add Student</a>
@@ -99,14 +216,21 @@
                 <button class="section-tab active" data-section="all">All Students</button>
             </div>
 
-            <!-- Students List -->
+            <!-- Students List Card -->
             <div class="card">
                 <div class="card-header flex-between">
                     <div>
                         <h3 class="card-title">Students List</h3>
                         <p class="card-subtitle" id="student-count">Loading...</p>
                     </div>
-                    <button onclick="loadStudents()" class="btn btn-secondary">🔄 Refresh</button>
+                    <div class="flex gap-2" style="align-items:center;">
+                        <!-- Select-mode toggle -->
+                        <button id="select-mode-btn" class="btn btn-secondary"
+                            onclick="toggleSelectMode()" title="Enable multi-select to delete students">
+                            ☑ Select
+                        </button>
+                        <button onclick="loadStudents()" class="btn btn-secondary">🔄 Refresh</button>
+                    </div>
                 </div>
 
                 <div id="students-container">
@@ -118,33 +242,61 @@
         </div>
     </main>
 
+    <!-- ── Floating Bulk-Action Bar ─────────────────────── -->
+    <div id="bulk-bar">
+        <div class="sel-count"><span id="sel-count-num">0</span> selected</div>
+        <button class="btn btn-secondary" onclick="selectAllVisible()">☑ Select All</button>
+        <button class="btn btn-secondary" onclick="deselectAll()">✕ Deselect</button>
+        <button class="btn btn-danger" onclick="openDeleteModal()">🗑 Delete Selected</button>
+    </div>
+
+    <!-- ── Confirm Delete Modal ────────────────────────── -->
+    <div id="confirm-modal-overlay">
+        <div id="confirm-modal">
+            <h3>⚠️ Delete Students</h3>
+            <p id="confirm-modal-text">
+                You are about to permanently delete <strong id="confirm-count"></strong> student(s)
+                along with all their attendance records.<br><br>
+                <strong>This action cannot be undone.</strong>
+            </p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+                <button class="btn btn-danger" id="confirm-delete-btn"
+                    onclick="executeBulkDelete()">Delete</button>
+            </div>
+        </div>
+    </div>
+
     <script src="js/app.js"></script>
     <script>
+        /* ═══════════════════════════════════════════
+           State
+        ═══════════════════════════════════════════ */
         let allStudents = [];
         let sections = new Set();
         let currentSection = 'all';
+        let selectMode = false;
+        let selectedIds = new Set();
 
+        /* ═══════════════════════════════════════════
+           Load / filter / display
+        ═══════════════════════════════════════════ */
         async function loadStudents() {
             const container = document.getElementById('students-container');
             container.innerHTML = '<div class="loading-container"><div class="spinner"></div></div>';
+            selectedIds.clear();
+            updateBulkBar();
 
             try {
                 const data = await APIClient.getStudents();
                 allStudents = data.students;
 
-                // Extract unique sections
                 sections.clear();
                 sections.add('all');
-                allStudents.forEach(student => {
-                    if (student.section) sections.add(student.section);
-                });
+                allStudents.forEach(s => { if (s.section) sections.add(s.section); });
 
-                // Update section tabs
                 updateSectionTabs();
-
-                // Display students
                 filterAndDisplay();
-
             } catch (error) {
                 container.innerHTML = `
                     <div class="alert alert-error">
@@ -152,61 +304,56 @@
                             <strong>Error loading students</strong>
                             <p style="margin-top: 0.5rem;">${error.message}</p>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             }
         }
 
         function updateSectionTabs() {
             const tabsContainer = document.getElementById('section-tabs');
-            const sortedSections = Array.from(sections).sort((a, b) => {
+            const sorted = Array.from(sections).sort((a, b) => {
                 if (a === 'all') return -1;
                 if (b === 'all') return 1;
                 return a.localeCompare(b);
             });
 
-            tabsContainer.innerHTML = sortedSections.map(section => `
-                <button 
-                    class="section-tab ${section === currentSection ? 'active' : ''}" 
-                    data-section="${section}"
-                    onclick="selectSection('${section}')"
+            tabsContainer.innerHTML = sorted.map(s => `
+                <button
+                    class="section-tab ${s === currentSection ? 'active' : ''}"
+                    data-section="${s}"
+                    onclick="selectSection('${s}')"
                 >
-                    ${section === 'all' ? 'All Students' : `Section ${section}`}
+                    ${s === 'all' ? 'All Students' : `Section ${s}`}
                 </button>
             `).join('');
         }
 
         function selectSection(section) {
             currentSection = section;
+            selectedIds.clear();
+            updateBulkBar();
             updateSectionTabs();
             filterAndDisplay();
         }
 
         function filterAndDisplay() {
             const searchTerm = document.getElementById('search').value.toLowerCase();
-
             let filtered = allStudents;
 
-            // Section filter
-            if (currentSection !== 'all') {
+            if (currentSection !== 'all')
                 filtered = filtered.filter(s => s.section === currentSection);
-            }
 
-            // Search filter
-            if (searchTerm) {
-                filtered = filtered.filter(student =>
-                    student.name.toLowerCase().includes(searchTerm) ||
-                    student.register_number.toLowerCase().includes(searchTerm)
+            if (searchTerm)
+                filtered = filtered.filter(s =>
+                    s.name.toLowerCase().includes(searchTerm) ||
+                    s.register_number.toLowerCase().includes(searchTerm)
                 );
-            }
 
             displayStudents(filtered);
 
-            const totalText = currentSection === 'all'
-                ? `${filtered.length} of ${allStudents.length} students`
-                : `${filtered.length} students in Section ${currentSection}`;
-
-            document.getElementById('student-count').textContent = totalText;
+            document.getElementById('student-count').textContent =
+                currentSection === 'all'
+                    ? `${filtered.length} of ${allStudents.length} students`
+                    : `${filtered.length} students in Section ${currentSection}`;
         }
 
         function displayStudents(students) {
@@ -214,23 +361,66 @@
 
             if (students.length === 0) {
                 container.innerHTML = `
-                    <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
-                        <div style="font-size: 3rem; margin-bottom: 1rem;">📚</div>
+                    <div style="text-align:center;padding:3rem;color:var(--text-secondary);">
+                        <div style="font-size:3rem;margin-bottom:1rem;">📚</div>
                         <h3>No students found</h3>
-                        <p style="margin-top: 0.5rem;">
-                            ${currentSection === 'all' ? 'Add your first student to get started' : `No students in Section ${currentSection}`}
+                        <p style="margin-top:0.5rem;">
+                            ${currentSection === 'all'
+                                ? 'Add your first student to get started'
+                                : `No students in Section ${currentSection}`}
                         </p>
-                        <a href="add-student.html" class="btn btn-primary" style="margin-top: 1rem;">Add Student</a>
-                    </div>
-                `;
+                        <a href="add-student.html" class="btn btn-primary" style="margin-top:1rem;">Add Student</a>
+                    </div>`;
                 return;
             }
 
-            const tableHtml = `
+            const cbHeader = selectMode
+                ? `<th class="cb-cell">
+                       <input type="checkbox" id="select-all-cb" class="row-cb"
+                           title="Select / deselect all visible"
+                           onchange="toggleSelectAll(this.checked)">
+                   </th>`
+                : '';
+
+            const rows = students.map(student => {
+                const isSelected = selectedIds.has(student.id);
+                return `
+                    <tr id="student-row-${student.id}" class="${isSelected ? 'selected-row' : ''}">
+                        ${selectMode
+                            ? `<td class="cb-cell">
+                                   <input type="checkbox" class="row-cb student-cb"
+                                       data-id="${student.id}"
+                                       ${isSelected ? 'checked' : ''}
+                                       onchange="onRowCheck(this)">
+                               </td>`
+                            : ''}
+                        <td><strong>${student.register_number}</strong></td>
+                        <td>${student.name}</td>
+                        <td><span class="badge badge-info">SEC ${student.section}</span></td>
+                        <td>${student.department}</td>
+                        <td>
+                            ${student.nfc_tag_id
+                                ? '<span class="badge badge-success">✓ Registered</span>'
+                                : '<span class="badge badge-warning">⚠ Not Registered</span>'}
+                        </td>
+                        <td>
+                            <a href="student-profile.html?id=${student.id}" class="btn btn-secondary action-btn">
+                                👁 View
+                            </a>
+                            <button onclick="deleteStudent('${student.id}', '${escapeQuotes(student.name)}')"
+                                class="btn btn-danger action-btn">
+                                🗑 Delete
+                            </button>
+                        </td>
+                    </tr>`;
+            }).join('');
+
+            container.innerHTML = `
                 <div class="table-container">
                     <table class="table">
                         <thead>
                             <tr>
+                                ${cbHeader}
                                 <th>Register No.</th>
                                 <th>Name</th>
                                 <th>Section</th>
@@ -239,80 +429,186 @@
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            ${students.map(student => `
-                                <tr id="student-row-${student.id}">
-                                    <td><strong>${student.register_number}</strong></td>
-                                    <td>${student.name}</td>
-                                    <td><span class="badge badge-info">SEC ${student.section}</span></td>
-                                    <td>${student.department}</td>
-                                    <td>
-                                        ${student.nfc_tag_id
-                    ? '<span class="badge badge-success">✓ Registered</span>'
-                    : '<span class="badge badge-warning">⚠ Not Registered</span>'
-                }
-                                    </td>
-                                    <td>
-                                        <a href="student-profile.html?id=${student.id}" class="btn btn-secondary action-btn">
-                                            👁 View
-                                        </a>
-                                        <button onclick="deleteStudent(${student.id}, '${student.name}')" class="btn btn-danger action-btn">
-                                            🗑 Delete
-                                        </button>
-                                    </td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
+                        <tbody>${rows}</tbody>
                     </table>
-                </div>
-            `;
+                </div>`;
 
-            container.innerHTML = tableHtml;
+            syncSelectAllCheckbox();
         }
 
-        async function deleteStudent(studentId, studentName) {
-            if (!confirm(`Delete student "${studentName}"?\n\nThis will also delete all their attendance records. This action cannot be undone.`)) {
-                return;
+        /* ═══════════════════════════════════════════
+           Select-mode toggle
+        ═══════════════════════════════════════════ */
+        function toggleSelectMode() {
+            selectMode = !selectMode;
+            const btn = document.getElementById('select-mode-btn');
+            if (selectMode) {
+                btn.textContent = '✕ Exit Select';
+                btn.classList.add('active');
+            } else {
+                btn.textContent = '☑ Select';
+                btn.classList.remove('active');
+                selectedIds.clear();
+                updateBulkBar();
             }
+            filterAndDisplay();
+        }
+
+        /* ═══════════════════════════════════════════
+           Row checkbox handlers
+        ═══════════════════════════════════════════ */
+        function onRowCheck(cb) {
+            const id = cb.dataset.id;
+            const row = document.getElementById(`student-row-${id}`);
+            if (cb.checked) {
+                selectedIds.add(id);
+                row && row.classList.add('selected-row');
+            } else {
+                selectedIds.delete(id);
+                row && row.classList.remove('selected-row');
+            }
+            updateBulkBar();
+            syncSelectAllCheckbox();
+        }
+
+        function toggleSelectAll(checked) {
+            document.querySelectorAll('.student-cb').forEach(cb => {
+                cb.checked = checked;
+                onRowCheck(cb);
+            });
+        }
+
+        function selectAllVisible() {
+            document.querySelectorAll('.student-cb').forEach(cb => {
+                cb.checked = true;
+                onRowCheck(cb);
+            });
+        }
+
+        function deselectAll() {
+            selectedIds.clear();
+            document.querySelectorAll('.student-cb').forEach(cb => { cb.checked = false; });
+            document.querySelectorAll('tr.selected-row').forEach(r => r.classList.remove('selected-row'));
+            updateBulkBar();
+            syncSelectAllCheckbox();
+        }
+
+        function syncSelectAllCheckbox() {
+            const allCbs = document.querySelectorAll('.student-cb');
+            const selectAllCb = document.getElementById('select-all-cb');
+            if (!selectAllCb) return;
+            const totalVisible = allCbs.length;
+            const checkedCount = [...allCbs].filter(c => c.checked).length;
+            selectAllCb.checked = totalVisible > 0 && checkedCount === totalVisible;
+            selectAllCb.indeterminate = checkedCount > 0 && checkedCount < totalVisible;
+        }
+
+        /* ═══════════════════════════════════════════
+           Bulk action bar visibility
+        ═══════════════════════════════════════════ */
+        function updateBulkBar() {
+            const bar = document.getElementById('bulk-bar');
+            const num = selectedIds.size;
+            document.getElementById('sel-count-num').textContent = num;
+            if (num > 0 && selectMode) {
+                bar.classList.add('visible');
+            } else {
+                bar.classList.remove('visible');
+            }
+        }
+
+        /* ═══════════════════════════════════════════
+           Delete modal
+        ═══════════════════════════════════════════ */
+        function openDeleteModal() {
+            if (selectedIds.size === 0) return;
+            document.getElementById('confirm-count').textContent = selectedIds.size;
+            document.getElementById('confirm-modal-overlay').classList.add('open');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('confirm-modal-overlay').classList.remove('open');
+        }
+
+        // Close modal on overlay click
+        document.getElementById('confirm-modal-overlay').addEventListener('click', function(e) {
+            if (e.target === this) closeDeleteModal();
+        });
+
+        /* ═══════════════════════════════════════════
+           Execute bulk delete
+        ═══════════════════════════════════════════ */
+        async function executeBulkDelete() {
+            const ids = Array.from(selectedIds);
+            const btn = document.getElementById('confirm-delete-btn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Deleting…';
+
+            try {
+                const result = await APIClient.deleteStudentsBulk(ids);
+                closeDeleteModal();
+
+                // Show success toast
+                showToast(`✓ ${result.deleted} student(s) deleted successfully`, 'success');
+
+                selectedIds.clear();
+                updateBulkBar();
+                await loadStudents();
+            } catch (err) {
+                closeDeleteModal();
+                showToast(`Failed to delete: ${err.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Delete';
+            }
+        }
+
+        /* ═══════════════════════════════════════════
+           Single student delete
+        ═══════════════════════════════════════════ */
+        async function deleteStudent(studentId, studentName) {
+            if (!confirm(`Delete student "${studentName}"?\n\nThis will also delete all their attendance records. This action cannot be undone.`))
+                return;
 
             try {
                 await APIClient.deleteStudent(studentId);
+                showToast(`✓ "${studentName}" deleted successfully`, 'success');
 
-                // Show success message
-                const alertDiv = document.createElement('div');
-                alertDiv.className = 'alert alert-success';
-                alertDiv.innerHTML = `
-                    <div>
-                        <strong>✓ Success!</strong>
-                        <p style="margin-top: 0.25rem;">Student "${studentName}" deleted successfully</p>
-                    </div>
-                `;
-                const card = document.querySelector('.card');
-                card.parentElement.insertBefore(alertDiv, card);
-
-                setTimeout(() => alertDiv.remove(), 3000);
-
-                // Remove row from table with animation
                 const row = document.getElementById(`student-row-${studentId}`);
                 if (row) {
                     row.style.transition = 'all 0.3s ease';
                     row.style.opacity = '0';
                     row.style.transform = 'translateX(-20px)';
-                    setTimeout(() => {
-                        // Reload students
-                        loadStudents();
-                    }, 300);
+                    setTimeout(() => loadStudents(), 300);
                 }
-
             } catch (error) {
-                alert(`Failed to delete student: ${error.message}`);
+                showToast(`Failed to delete: ${error.message}`, 'error');
             }
+        }
+
+        /* ═══════════════════════════════════════════
+           Toast notification
+        ═══════════════════════════════════════════ */
+        function showToast(msg, type = 'success') {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.style.cssText = 'position:fixed;top:1.5rem;right:1.5rem;z-index:3000;max-width:360px;animation:modalIn .25s ease;';
+            alertDiv.innerHTML = `<div><strong>${msg}</strong></div>`;
+            document.body.appendChild(alertDiv);
+            setTimeout(() => alertDiv.remove(), 4000);
+        }
+
+        /* ═══════════════════════════════════════════
+           Utility
+        ═══════════════════════════════════════════ */
+        function escapeQuotes(str) {
+            return str ? str.replace(/'/g, "\\'").replace(/"/g, '&quot;') : '';
         }
 
         // Event listeners
         document.getElementById('search').addEventListener('input', filterAndDisplay);
 
-        // Load students on page load
+        // Load on page load
         loadStudents();
     </script>
 </body>

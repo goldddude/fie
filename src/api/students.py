@@ -122,6 +122,29 @@ def get_students():
         return jsonify({'error': str(e)}), 500
 
 
+@students_bp.route('/bulk-delete', methods=['POST'])
+def bulk_delete_students():
+    """Bulk-delete students by a list of IDs"""
+    try:
+        data = request.get_json()
+        if not data or 'ids' not in data or not isinstance(data['ids'], list):
+            return jsonify({'error': 'Provide a JSON body with an "ids" list'}), 400
+
+        ids = [str(i) for i in data['ids'] if i]
+        if not ids:
+            return jsonify({'error': 'No IDs provided'}), 400
+
+        deleted, failed = StudentService.bulk_delete_students(ids)
+        return jsonify({
+            'message': f'{deleted} student(s) deleted successfully',
+            'deleted': deleted,
+            'failed': failed
+        }), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @students_bp.route('/<student_id>', methods=['GET', 'DELETE'])
 def get_or_delete_student(student_id):
     """Get or delete a specific student by ID"""
